@@ -1,0 +1,86 @@
+/*
+ * Vortex Chess design tokens, extracted from the launcher reference.
+ * Components consume these through the Tailwind theme mapping in
+ * `app/globals.css` (e.g. `bg-surface`, `text-accent`, `border-line`).
+ */
+:root {
+  /* Foundations */
+  --vc-canvas: #0a0e18;
+  --vc-chrome: #0c121e;
+  --vc-sidebar: #090d18;
+  --vc-surface: #0e121d;
+  --vc-surface-raised: #121724;
+  --vc-surface-hover: #181e2d;
+  --vc-surface-inset: #0e1424;
+  --vc-line: #1c2230;
+  --vc-line-strong: #2a3244;
+
+  /* Text */
+  --vc-text: #f1f3f7;
+  --vc-text-muted: #a3abbb;
+  --vc-text-subtle: #6f788b;
+
+  /* Accent: amber/gold (primary action, highlights) */
+  --vc-accent: #e8ae4c;
+  --vc-accent-strong: #f6c443;
+  --vc-accent-soft: #2a2114;
+  --vc-accent-line: #5a4320;
+
+  /* Emerald: success, presence, connection */
+  --vc-success: #2fcf98;
+  --vc-success-strong: #10b981;
+  --vc-success-soft: #113433;
+  --vc-success-line: #1d5c4b;
+
+  /* Danger: losses, errors, alerts */
+  --vc-danger: #f26b80;
+  --vc-danger-soft: #3e1e2d;
+  --vc-danger-line: #6b2d40;
+
+  /* Info: sapphire game-action cards */
+  --vc-info: #5b9cf5;
+  --vc-info-soft: #13284a;
+  --vc-info-line: #273d6e;
+  --vc-cyan: #96dde9;
+
+  /* Card gradients */
+  --vc-card-blue-from: #0f1d37;
+  --vc-card-blue-to: #0b1629;
+  --vc-card-gold-from: #6a4c15;
+  --vc-card-gold-to: #4a300b;
+  --vc-card-gold-line: #b08330;
+
+  /* Shape and depth */
+  --vc-radius-sm: 4px;
+  --vc-radius-md: 6px;
+  --vc-radius-lg: 8px;
+  --vc-shadow-panel: 0 18px 40px -24px rgb(0 0 0 / 0.8);
+  --vc-shadow-gold-glow: 0 0 28px -4px rgb(232 174 76 / 0.45);
+
+  /* Authentication screens ("tactical core" palette) */
+  --vc-auth-page: #090e18;
+  --vc-auth-primary: #4edea3;
+  --vc-auth-primary-strong: #10b981;
+  --vc-auth-on-primary: #003824;
+  --vc-auth-title: #dee2f1;
+  --vc-auth-text: #edf1ff;
+  --vc-auth-label: #c9d9cd;
+  --vc-auth-muted: #909f94;
+  --vc-auth-placeholder: #636f6b;
+  --vc-auth-dim: #606b68;
+  --vc-auth-amber: #ffc867;
+  --vc-auth-lavender: #c9caff;
+  --vc-auth-danger: #ffb4ab;
+  --vc-auth-field: #222a32;
+  --vc-auth-field-alt: #1b202a;
+  --vc-auth-chip: #252b35;
+  --vc-auth-tile: #1f242f;
+  --vc-auth-line: #232933;
+  --vc-auth-well: #10161f;
+
+  /* Layout */
+  --vc-header-height: 80px;
+  --vc-sidebar-width: 360px;
+
+  color-scheme: dark;
+}

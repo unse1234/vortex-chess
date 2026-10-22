@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+@theme inline {
+  --font-sans: var(--font-lexend);
+  --font-brush: var(--font-permanent-marker);
+  /* Loaded by the (auth) route group only. */
+  --font-display: var(--font-space-grotesk);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-body: var(--font-inter);
+
+  --color-auth-page: var(--vc-auth-page);
+  --color-auth-primary: var(--vc-auth-primary);
+  --color-auth-primary-strong: var(--vc-auth-primary-strong);
+  --color-auth-on-primary: var(--vc-auth-on-primary);
+  --color-auth-title: var(--vc-auth-title);
+  --color-auth-text: var(--vc-auth-text);
+  --color-auth-label: var(--vc-auth-label);
+  --color-auth-muted: var(--vc-auth-muted);
+  --color-auth-placeholder: var(--vc-auth-placeholder);
+  --color-auth-dim: var(--vc-auth-dim);
+  --color-auth-amber: var(--vc-auth-amber);
+  --color-auth-lavender: var(--vc-auth-lavender);
+  --color-auth-danger: var(--vc-auth-danger);
+  --color-auth-field: var(--vc-auth-field);
+  --color-auth-field-alt: var(--vc-auth-field-alt);
+  --color-auth-chip: var(--vc-auth-chip);
+  --color-auth-tile: var(--vc-auth-tile);
+  --color-auth-line: var(--vc-auth-line);
+  --color-auth-well: var(--vc-auth-well);
+
+  --color-canvas: var(--vc-canvas);
+  --color-chrome: var(--vc-chrome);
+  --color-sidebar: var(--vc-sidebar);
+  --color-surface: var(--vc-surface);
+  --color-surface-raised: var(--vc-surface-raised);
+  --color-surface-hover: var(--vc-surface-hover);
+  --color-surface-inset: var(--vc-surface-inset);
+  --color-line: var(--vc-line);
+  --color-line-strong: var(--vc-line-strong);
+
+  --color-fg: var(--vc-text);
+  --color-fg-muted: var(--vc-text-muted);
+  --color-fg-subtle: var(--vc-text-subtle);
+
+  --color-accent: var(--vc-accent);
+  --color-accent-strong: var(--vc-accent-strong);
+  --color-accent-soft: var(--vc-accent-soft);
+  --color-accent-line: var(--vc-accent-line);
+
+  --color-success: var(--vc-success);
+  --color-success-strong: var(--vc-success-strong);
+  --color-success-soft: var(--vc-success-soft);
+  --color-success-line: var(--vc-success-line);
+
+  --color-danger: var(--vc-danger);
+  --color-danger-soft: var(--vc-danger-soft);
+  --color-danger-line: var(--vc-danger-line);
+
+  --color-info: var(--vc-info);
+  --color-info-soft: var(--vc-info-soft);
+  --color-info-line: var(--vc-info-line);
+  --color-cyan: var(--vc-cyan);
+
+  --radius-sm: var(--vc-radius-sm);
+  --radius-md: var(--vc-radius-md);
+  --radius-lg: var(--vc-radius-lg);
+
+  --shadow-panel: var(--vc-shadow-panel);
+  --shadow-gold-glow: var(--vc-shadow-gold-glow);
+}
+
+@layer base {
+  body {
+    background-color: var(--vc-canvas);
+    color: var(--vc-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--vc-accent);
+    outline-offset: 2px;
+  }
+
+  html:has(dialog[open]:modal) {
+    overflow: hidden;
+  }
+
+  dialog::backdrop {
+    background: rgb(3 6 12 / 0.72);
+    backdrop-filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
