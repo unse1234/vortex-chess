@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+datasource db {
+  provider = "postgresql"
+}
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique @db.VarChar(254)
+  username String @db.VarChar(20)
+  usernameKey String @unique @db.VarChar(20)
+  passwordHash String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  sessions AuthSession[]
+}
+model AuthSession {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  persistent Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  tokens RefreshToken[]
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+model RefreshToken {
+  id String @id @default(uuid()) @db.Uuid
+  sessionId String @db.Uuid
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tokenHash String @unique @db.Char(64)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  usedAt DateTime? @db.Timestamptz(3)
+  @@index([sessionId])
+}
