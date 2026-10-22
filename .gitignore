@@ -1,0 +1,10 @@
+# Local secrets, regardless of which app creates them
+**/.env*
+!**/.env.example
+
+# Generated Husky runtime
+.husky/_/
+
+# Operating system files
+.DS_Store
+Thumbs.db

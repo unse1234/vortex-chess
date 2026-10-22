@@ -1,0 +1,4 @@
+npm --prefix frontend run lint || exit $?
+npm --prefix frontend run typecheck || exit $?
+npm --prefix backend run lint || exit $?
+npm --prefix backend run typecheck || exit $?
