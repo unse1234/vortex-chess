@@ -1,0 +1,29 @@
+# Vortix Chess
+
+One repository for the Vortix Chess frontend, backend, and project documentation.
+
+| Directory | Contents |
+| --- | --- |
+| [frontend/](frontend/README.md) | Next.js interface, V1 chess experience, and API authentication integration |
+| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, and email/password sessions |
+| [docs/](docs/) | Architecture, scope decisions, and milestone handoff |
+
+Start with the [project plan](docs/Vortix_Chess_Project_Plan.md) and the [authentication milestone](docs/Backend_Authentication_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
+
+Install dependencies separately from this directory:
+
+```sh
+npm --prefix frontend ci
+npm --prefix backend ci
+```
+
+The apps share one Git history. Run Git commands from this directory; commit hooks run lint and typecheck for both apps. Keep local credentials in ignored `.env` files and use the committed `.env.example` files as templates.
+
+```sh
+npm --prefix frontend run test
+npm --prefix backend run test
+npm --prefix frontend run build
+npm --prefix backend run build
+```
+
+Backend HTTP integration tests additionally require a dedicated PostgreSQL test database; see [backend setup](backend/README.md).
