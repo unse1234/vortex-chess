@@ -49,7 +49,7 @@ export function GameResultDialog({ gameId, open, onOpenChange, result, viewer }:
         >
           {summary.headline.toUpperCase()}
         </p>
-        <p className="mt-3 text-sm text-fg-muted">Rating <ComingSoon feature="ratings" /></p>
+        {result.outcome === "aborted" ? null : <p className="mt-3 text-sm text-fg-muted">Rating <ComingSoon feature="ratings" /></p>}
       </div>
     </Dialog>
   );

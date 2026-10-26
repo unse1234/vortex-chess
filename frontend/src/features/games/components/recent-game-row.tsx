@@ -7,7 +7,7 @@ import type { RecentGame } from "@/features/games/types/recent-game.types";
 import { ComingSoon } from "@/components/display/coming-soon";
 import { formatRelativeTime } from "@/utils/format-relative-time";
 
-const resultSentence = { win: "Won against", loss: "Lost to", draw: "Drew with" } as const;
+const resultSentence = { win: "Won against", loss: "Lost to", draw: "Drew with", aborted: "Aborted game against" } as const;
 
 export function RecentGameRow({ game, now }: { game: RecentGame; now: number | null }) {
   const { viewer, opponent } = game;

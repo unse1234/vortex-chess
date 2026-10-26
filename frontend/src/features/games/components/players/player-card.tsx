@@ -8,6 +8,7 @@ import { GameClock } from "@/features/games/components/clocks/game-clock";
 import { capturedByColor } from "@/features/games/board-position";
 import { CapturedPieces } from "@/features/games/components/players/captured-pieces";
 import { useGameSession } from "@/features/games/providers/game-session-provider";
+import { currentEngineTurn } from "@/features/games/realtime/reconcile-game-snapshot";
 import type { Color } from "@/features/games/types/game.types";
 import { cn } from "@/utils/cn";
 
@@ -20,7 +21,7 @@ function describeTurn(
   if (game.status.phase === "finished") {
     const { outcome } = game.status.result;
     const won = (outcome === "white" && color === "w") || (outcome === "black" && color === "b");
-    const text = outcome === "draw" ? "Draw" : won ? "Winner" : "Defeated";
+    const text = outcome === "draw" ? "Draw" : outcome === "aborted" ? "Aborted" : won ? "Winner" : "Defeated";
     return { label: "Final", detail: text, tone: "standby" };
   }
 
@@ -28,13 +29,21 @@ function describeTurn(
   const own = game.viewer.color === color;
   if (!toMove) return { label: "Standby", detail: "Waiting for opponent", tone: "standby" };
   if (own) return { label: "Your turn", detail: "Targeting lock active", tone: "own" };
-  if (game.players[color].kind === "engine") return { label: "Awaiting ply", detail: "Calculating…", tone: "opponent" };
+  if (game.players[color].kind === "engine") return describeEngineTurn(currentEngineTurn(game));
   if (!game.players[color].online) return { label: "Opponent's turn", detail: "Disconnected · clock running", tone: "opponent" };
   return { label: "Opponent's turn", detail: "Thinking…", tone: "opponent" };
 }
 
+/** Only what the server reported: queued for a search slot, searching, or retrying the service. */
+function describeEngineTurn(turn: ReturnType<typeof currentEngineTurn>): TurnReadout {
+  if (turn?.phase === "thinking") return { label: "Engine's turn", detail: "Thinking…", tone: "opponent" };
+  if (turn?.phase === "queued") return { label: "Engine's turn", detail: "Waiting for the engine…", tone: "opponent" };
+  if (turn?.phase === "retrying") return { label: "Engine's turn", detail: `Reconnecting · attempt ${turn.attempt}`, tone: "opponent" };
+  return { label: "Engine's turn", detail: "Clock running", tone: "opponent" };
+}
+
 function playerTitle(own: boolean, kind: "human" | "engine") {
-  if (kind === "engine") return "BOT";
+  if (kind === "engine") return "ENGINE";
   return own ? "YOU" : null;
 }
 
@@ -94,7 +103,7 @@ export function PlayerCard({ color, recordedMs }: { color: Color; recordedMs?: n
           ) : null}
         </p>
         <p className="mt-[4px] flex flex-wrap items-center gap-x-[8px] gap-y-1 font-mono text-[13px] font-bold tracking-[0.04em]">
-          <span>Ratings</span><ComingSoon feature="ratings" />
+          {player.kind === "engine" ? <span className="text-auth-label">Engine service</span> : <><span>Ratings</span><ComingSoon feature="ratings" /></>}
           {captured.length > 0 ? (
             <>
               <span aria-hidden className="size-[4px] rounded-full bg-[#3d4b43]" />

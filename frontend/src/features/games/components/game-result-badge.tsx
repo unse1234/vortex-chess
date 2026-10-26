@@ -5,6 +5,7 @@ const resultStyles: Record<GameResult, { label: string; className: string }> = {
   win: { label: "Won", className: "border-success-line bg-success-soft text-success" },
   loss: { label: "Lost", className: "border-danger-line bg-danger-soft text-danger" },
   draw: { label: "Draw", className: "border-line-strong bg-surface-hover text-fg-muted" },
+  aborted: { label: "Aborted", className: "border-line-strong bg-surface-hover text-fg-subtle" },
 };
 
 export function GameResultBadge({ result }: { result: GameResult }) {

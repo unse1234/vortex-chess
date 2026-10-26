@@ -1,7 +1,7 @@
 import { Panel } from "@/components/layout/panel";
 import { AppLink } from "@/components/ui/app-link";
 import { ComingSoon } from "@/components/display/coming-soon";
-import { BoltIcon, ChevronRightIcon, GroupIcon, RoomIcon, SwordsIcon } from "@/components/ui/icons";
+import { BoltIcon, ChevronRightIcon, GroupIcon, RobotIcon, RoomIcon, SwordsIcon } from "@/components/ui/icons";
 import { features } from "@/config/capabilities";
 import { routes } from "@/config/routes";
 
@@ -23,6 +23,21 @@ export function QuickMatchPanel({ className }: { className?: string }) {
             <span className="flex-1"><span className="block font-bold text-fg">2v2</span><span className="text-[13px] text-fg-muted">Team Match</span></span>
             <ComingSoon feature="team" />
           </button>
+        </li>
+        <li>
+          {features.enginePlay.available ? (
+            <AppLink href={routes.createRoom({ opponent: "engine" })} destinationLabel="Play vs Engine" className={rowClassName}>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-xl border-line-strong bg-surface-hover text-info"><RobotIcon /></span>
+              <span className="flex-1"><span className="block font-bold text-fg">Vs Engine</span><span className="text-[13px] text-fg-muted">Challenge the engine</span></span>
+              <ChevronRightIcon className="text-lg text-fg-subtle" />
+            </AppLink>
+          ) : (
+            <button type="button" disabled className={rowClassName}>
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md border text-xl border-line-strong bg-surface-hover text-fg-subtle"><RobotIcon /></span>
+              <span className="flex-1"><span className="block font-bold text-fg">Vs Engine</span><span className="text-[13px] text-fg-muted">Challenge the engine</span></span>
+              <ComingSoon feature="enginePlay" />
+            </button>
+          )}
         </li>
         <li>
           <AppLink href={routes.createRoom()} destinationLabel="Room setup" className={rowClassName}>

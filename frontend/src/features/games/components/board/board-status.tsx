@@ -1,5 +1,6 @@
 import type { GameConnection } from "@/features/games/providers/game-session-provider";
 import type { PendingCommand } from "@/features/games/types/game-command.types";
+import { currentEngineTurn } from "@/features/games/realtime/reconcile-game-snapshot";
 import type { GameSnapshot } from "@/features/games/types/game.types";
 import { cn } from "@/utils/cn";
 
@@ -7,7 +8,7 @@ type StatusTone = "active" | "idle" | "warning";
 
 function describeOutcome(game: GameSnapshot & { status: { phase: "finished" } }) {
   const { outcome, reason } = game.status.result;
-  const side = outcome === "draw" ? "DRAW" : `${outcome.toUpperCase()} WINS`;
+  const side = outcome === "draw" ? "DRAW" : outcome === "aborted" ? "ABORTED" : `${outcome.toUpperCase()} WINS`;
   return `${side} // ${reason.replace(/-/g, " ").toUpperCase()}`;
 }
 
@@ -52,7 +53,13 @@ export function describeBoardStatus(
   if (pending?.status === "uncertain") return { left, right: `${prefix} CONFIRMING WITH SERVER`, tone: "warning" };
   if (pending) return { left, right: `${prefix} TRANSMITTING`, tone: "active" };
   if (game.viewer.color === turn) return { left, right: `${prefix} AWAITING YOUR MOVE`, tone: "active" };
-  if (mover.kind === "engine") return { left, right: `${prefix} ENGINE THINKING`, tone: "active" };
+  if (mover.kind === "engine") {
+    const engineTurn = currentEngineTurn(game);
+    if (engineTurn?.phase === "retrying")
+      return { left, right: `${prefix} ENGINE UNREACHABLE // RETRY ${engineTurn.attempt}`, tone: "warning" };
+    if (engineTurn?.phase === "queued") return { left, right: `${prefix} ENGINE QUEUED`, tone: "active" };
+    return { left, right: `${prefix} ENGINE THINKING`, tone: "active" };
+  }
   return { left, right: `${prefix} AWAITING OPPONENT`, tone: "active" };
 }
 

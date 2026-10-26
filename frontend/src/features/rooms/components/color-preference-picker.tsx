@@ -31,13 +31,14 @@ type ColorPreferencePickerProps = {
   value: ColorPreference;
   onChange: (value: ColorPreference) => void;
   disabled?: boolean;
+  legend?: string;
 };
 
 /** The host's side; the challenger receives the other colour. */
-export function ColorPreferencePicker({ name, options, value, onChange, disabled = false }: ColorPreferencePickerProps) {
+export function ColorPreferencePicker({ name, options, value, onChange, disabled = false, legend = "Host plays" }: ColorPreferencePickerProps) {
   return (
     <fieldset disabled={disabled} className="min-w-0">
-      <legend className="text-[13px] font-bold uppercase tracking-[0.08em] text-fg-muted">Host plays</legend>
+      <legend className="text-[13px] font-bold uppercase tracking-[0.08em] text-fg-muted">{legend}</legend>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {options.map((option) => {
           const checked = option === value;

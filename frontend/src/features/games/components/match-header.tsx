@@ -15,7 +15,7 @@ export function MatchHeader({ latencyMs }: { latencyMs: number | undefined }) {
       <p className="flex items-center gap-[12px] rounded-[4px] bg-[#252a35] px-[15px] py-[6px] sm:px-[15px]">
         <span aria-hidden className={cn("size-[8px] rounded-full", game.status.phase === "finished" ? "bg-auth-dim" : "bg-auth-primary")} />
         <span className="font-display text-[17px] font-bold uppercase leading-6 text-auth-primary sm:text-[20px]">
-          Casual Duel
+          {game.mode === "engine" ? "Engine Match" : "Casual Duel"}
         </span>
         <span className="font-mono text-[13px] font-bold tracking-[0.12em] text-auth-label">
           {formatTimeControl(game.timeControl)}
