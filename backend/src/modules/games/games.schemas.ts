@@ -31,3 +31,17 @@ export const realtimeDrawResponseSchema = withGame(drawResponseSchema);
 export type MoveCommandInput = z.infer<typeof moveCommandSchema>;
 export type SimpleCommandInput = z.infer<typeof simpleCommandSchema>;
 export type DrawResponseInput = z.infer<typeof drawResponseSchema>;
+
+export const gameHistorySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().min(1).max(200).optional(),
+  side: z.enum(['w', 'b']).optional(),
+  result: z.enum(['win', 'loss', 'draw']).optional(),
+}).strict();
+export type GameHistoryInput = z.infer<typeof gameHistorySchema>;
+
+export const analysisPreviewSchema = z.object({
+  basePly: z.number().int().min(0).max(20_000),
+  path: z.array(z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/)).max(128),
+}).strict();
+export type AnalysisPreviewInput = z.infer<typeof analysisPreviewSchema>;

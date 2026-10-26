@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Vortex Chess API",
-    "version": "1.2.0",
-    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address."
+    "version": "1.3.0",
+    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; engine play/evaluation remain unavailable. See docs/History_Replay_Analysis_Milestone.md."
   },
   "servers": [
     {
@@ -2753,6 +2753,231 @@
           }
         }
       }
+    },
+    "/games": {
+      "get": {
+        "operationId": "listGameHistory",
+        "summary": "Current participant finished-game history, paginated in PostgreSQL",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "Opaque nextCursor from the previous page with the same filters. Ordered by endedAt DESC then id DESC."
+          },
+          {
+            "in": "query",
+            "name": "side",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "w",
+                "b"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "win",
+                "loss",
+                "draw"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameHistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter, limit or cursor"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/games/recent": {
+      "get": {
+        "operationId": "listRecentGames",
+        "summary": "Current participant finished-game history, paginated in PostgreSQL",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "description": "Opaque nextCursor from the previous page with the same filters. Ordered by endedAt DESC then id DESC."
+          },
+          {
+            "in": "query",
+            "name": "side",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "w",
+                "b"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "result",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "win",
+                "loss",
+                "draw"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameHistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid filter, limit or cursor"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    },
+    "/games/{gameId}/analysis/preview": {
+      "post": {
+        "operationId": "previewManualVariation",
+        "summary": "Validate an untimed temporary variation from a recorded position",
+        "description": "Participants only; game must be finished. Replays initialFen and recorded prefix up to basePly, checks SAN/FEN integrity, then applies the UCI path in an isolated chess.js instance. Returns every validated SAN/FEN plus final turn, check and legal destinations for the side to move. No writes, session table, clock changes, live events or engine calls. Earlier positions remain explorable after mate/resignation/timeout. FEN input and unknown fields are rejected. Do not automatically retry illegal moves.",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gameId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisPreviewInput"
+              },
+              "example": {
+                "basePly": 1,
+                "path": [
+                  "c7c5",
+                  "g1f3"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload, limits or base ply"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "game_not_found; missing game or not a participant"
+          },
+          "409": {
+            "description": "analysis_requires_finished_game"
+          },
+          "422": {
+            "description": "illegal_analysis_move; includes the failing 1-based variation index"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "game_integrity_error; recorded prefix cannot be reconstructed"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4186,6 +4411,188 @@
             }
           }
         ]
+      },
+      "AnalysisPreviewInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "basePly",
+          "path"
+        ],
+        "properties": {
+          "basePly": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "path": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$"
+            }
+          }
+        }
+      },
+      "AnalysisPreviewMove": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "uci",
+          "san",
+          "fen",
+          "from",
+          "to",
+          "ply"
+        ],
+        "properties": {
+          "uci": {
+            "type": "string"
+          },
+          "san": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "ply": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "AnalysisPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "basePly",
+          "moves",
+          "fen",
+          "turn",
+          "checkSquare",
+          "legalMoves"
+        ],
+        "properties": {
+          "basePly": {
+            "type": "integer"
+          },
+          "moves": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalysisPreviewMove"
+            }
+          },
+          "fen": {
+            "type": "string"
+          },
+          "turn": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "checkSquare": {
+            "type": "string",
+            "nullable": true
+          },
+          "legalMoves": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              }
+            }
+          }
+        }
+      },
+      "HistoryGame": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "endedAt",
+          "startedAt",
+          "side",
+          "mode",
+          "result",
+          "timeControl",
+          "viewer",
+          "opponent"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "friends"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "win",
+              "loss",
+              "draw"
+            ]
+          },
+          "timeControl": {
+            "$ref": "#/components/schemas/TimeControl"
+          },
+          "viewer": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "opponent": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          }
+        }
+      },
+      "GameHistoryPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryGame"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       }
     }
   },

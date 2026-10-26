@@ -6,6 +6,7 @@ import {
   HttpException,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,9 @@ import type { AuthenticatedRequest } from '../../common/guards/access-token.guar
 import { SchemaValidationPipe } from '../../common/pipes/schema-validation.pipe';
 import { ServerClock } from './clocks/server-clock';
 import { GamesService } from './games.service';
+import { GameHistoryService } from './services/game-history.service';
+import { AnalysisPreviewService } from './services/analysis-preview.service';
+import { analysisPreviewSchema, gameHistorySchema, type AnalysisPreviewInput, type GameHistoryInput } from './games.schemas';
 import {
   drawResponseSchema,
   gameIdSchema,
@@ -52,10 +56,32 @@ export class GamesController {
     private readonly games: GamesService,
     private readonly commands: GameCommandsService,
     private readonly clock: ServerClock,
+    private readonly history: GameHistoryService,
+    private readonly analysis: AnalysisPreviewService,
   ) {}
 
   private context(): CommandContext {
     return { receivedAt: this.clock.now(), receivedPerf: performance.now() };
+  }
+
+  @Get()
+  historyPage(@Req() request: AuthenticatedRequest, @Query(new SchemaValidationPipe(gameHistorySchema)) query: GameHistoryInput) {
+    return this.history.list(request.user.id, query);
+  }
+
+  @Get('recent')
+  recent(@Req() request: AuthenticatedRequest, @Query(new SchemaValidationPipe(gameHistorySchema)) query: GameHistoryInput) {
+    return this.history.list(request.user.id, query);
+  }
+
+  @Post(':gameId/analysis/preview')
+  @HttpCode(200)
+  preview(
+    @Req() request: AuthenticatedRequest,
+    @Param('gameId', gameId()) id: string,
+    @Body(new SchemaValidationPipe(analysisPreviewSchema)) body: AnalysisPreviewInput,
+  ) {
+    return this.analysis.preview(request.user.id, id, body);
   }
 
   @Get(':gameId')

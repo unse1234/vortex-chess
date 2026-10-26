@@ -242,6 +242,7 @@ model Game {
   moves GameMove[]
   commands GameCommand[]
   @@index([status])
+  @@index([status, endedAt(sort: Desc), id(sort: Desc)])
 }
 model GameParticipant {
   gameId String @db.Uuid
