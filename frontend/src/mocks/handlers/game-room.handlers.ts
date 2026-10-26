@@ -31,6 +31,29 @@ const notFound = () =>
 
 /** Snapshots and match chat. Game commands go through the mock realtime client, as in production. */
 export const gameRoomHandlers = [
+  http.post(apiPath("/games/:gameId/analysis/preview"), async ({ params }) => {
+    const failure = await simulateNetwork();
+    if (failure) return failure;
+    if (!getMockSessionUser()) return unauthenticated();
+    const game = getGameRoom(String(params.gameId));
+    if (!game) return notFound();
+    if (buildSnapshot(game).status.phase !== "finished")
+      return HttpResponse.json(
+        {
+          code: "analysis_requires_finished_game",
+          message: "Manual analysis is available after the game finishes.",
+        },
+        { status: 409 },
+      );
+    return HttpResponse.json(
+      {
+        code: "scripted_demo_only",
+        message:
+          "Manual variations require the real backend. This demo only contains recorded positions.",
+      },
+      { status: 503 },
+    );
+  }),
   http.get(apiPath("/games/:gameId"), async ({ params }) => {
     const unavailable = await simulateNetwork();
     if (unavailable) return unavailable;

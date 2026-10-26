@@ -29,6 +29,7 @@ describe("V1 navigation boundaries", () => {
       routes.games,
       routes.game("vortex-demo"),
       routes.game("completed-game"),
+      routes.analysis("completed-game"),
     ]) {
       expect(isRouteAvailable(path)).toBe(true);
     }
@@ -40,6 +41,7 @@ describe("V1 navigation boundaries", () => {
     );
     // Invitation links survive sign-in and sign-up.
     expect(toSafeInternalPath("/rooms/join/abc-123", routes.play)).toBe("/rooms/join/abc-123");
+    expect(toSafeInternalPath(routes.analysis("completed-game"), routes.play)).toBe(routes.analysis("completed-game"));
     for (const path of [
       "https://evil.invalid",
       "//evil.invalid",

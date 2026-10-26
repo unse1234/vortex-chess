@@ -32,6 +32,7 @@ export const routes = {
     withQuery("/matchmaking", { mode: options.mode }),
   games: "/games",
   game: (gameId: string) => `/games/${encodeURIComponent(gameId)}`,
+  analysis: (gameId: string) => `/games/${encodeURIComponent(gameId)}/analysis`,
 } as const;
 
 /**
@@ -55,6 +56,7 @@ const availableRoutePatterns: readonly RegExp[] = [
   /^\/matchmaking$/,
   /^\/games$/,
   /^\/games\/[^/]+$/,
+  /^\/games\/[^/]+\/analysis$/,
 ];
 
 /**

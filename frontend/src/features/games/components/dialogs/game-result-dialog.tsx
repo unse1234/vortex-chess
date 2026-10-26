@@ -29,6 +29,7 @@ export function GameResultDialog({ gameId, open, onOpenChange, result, viewer }:
       footer={
         <>
           <Link href={routes.game(gameId)} onClick={() => onOpenChange(false)} className="rounded-md px-4 py-2 text-sm font-semibold">Replay game</Link>
+          <Link href={routes.analysis(gameId)} onClick={() => onOpenChange(false)} className="rounded-md bg-surface-raised px-4 py-2 text-sm font-semibold">Analyze manually</Link>
           <Link
             href={routes.play}
             data-autofocus

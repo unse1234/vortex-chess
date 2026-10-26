@@ -11,10 +11,11 @@ type FeatureAvailability = { available: boolean; label: string };
 export const features = {
   emailPassword: { available: true, label: "Email and password" },
   invitations: { available: true, label: "Private invitations" },
-  enginePlay: { available: true, label: "Play vs Engine" },
+  enginePlay: { available: false, label: "Play vs Engine" },
   roomSetup: { available: true, label: "Room setup" },
   matchStart: { available: true, label: "Match start" },
   history: { available: true, label: "Game history and replay" },
+  manualAnalysis: { available: true, label: "Temporary manual post-game analysis" },
   matchmaking: { available: false, label: "Find Players" },
   team: { available: false, label: "2v2" },
   tournaments: { available: false, label: "Tournaments" },

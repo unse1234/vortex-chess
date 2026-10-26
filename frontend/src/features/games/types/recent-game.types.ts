@@ -6,8 +6,8 @@ export type GameResult = "win" | "loss" | "draw";
 export type RatingTier = "standard" | "elite";
 
 export type GamePlayer = UserSummary & {
-  rating: number;
-  ratingTier: RatingTier;
+  rating?: number;
+  ratingTier?: RatingTier;
 };
 
 /** A finished game from the viewer's perspective. */
