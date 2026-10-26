@@ -5,6 +5,7 @@ import { ComingSoon } from "@/components/display/coming-soon";
 import { Avatar } from "@/components/display/avatar";
 import { RobotIcon } from "@/components/ui/icons";
 import { GameClock } from "@/features/games/components/clocks/game-clock";
+import { capturedByColor } from "@/features/games/board-position";
 import { CapturedPieces } from "@/features/games/components/players/captured-pieces";
 import { useGameSession } from "@/features/games/providers/game-session-provider";
 import type { Color } from "@/features/games/types/game.types";
@@ -27,38 +28,40 @@ function describeTurn(
   const own = game.viewer.color === color;
   if (!toMove) return { label: "Standby", detail: "Waiting for opponent", tone: "standby" };
   if (own) return { label: "Your turn", detail: "Targeting lock active", tone: "own" };
-  if (game.players[color].kind === "bot") return { label: "Awaiting ply", detail: "Calculating…", tone: "opponent" };
-  return { label: game.viewer.role === "player" ? "Opponent's turn" : "To move", detail: "Thinking…", tone: "opponent" };
+  if (game.players[color].kind === "engine") return { label: "Awaiting ply", detail: "Calculating…", tone: "opponent" };
+  if (!game.players[color].online) return { label: "Opponent's turn", detail: "Disconnected · clock running", tone: "opponent" };
+  return { label: "Opponent's turn", detail: "Thinking…", tone: "opponent" };
 }
 
-function playerTitle(own: boolean, spectating: boolean, kind: "human" | "bot") {
-  if (kind === "bot") return "BOT";
-  return own && !spectating ? "YOU" : null;
+function playerTitle(own: boolean, kind: "human" | "engine") {
+  if (kind === "engine") return "BOT";
+  return own ? "YOU" : null;
 }
 
 /** A player's strip: identity, rating, captures, whose turn it is, and their clock. */
-export function PlayerCard({ color }: { color: Color }) {
+export function PlayerCard({ color, recordedMs }: { color: Color; recordedMs?: number }) {
   const { game } = useGameSession();
   const player = game.players[color];
   const own = game.viewer.color === color;
   const readout = describeTurn(color, game);
   const opponentColor: Color = color === "w" ? "b" : "w";
-  const title = playerTitle(own, game.viewer.role === "spectator", player.kind);
+  const title = playerTitle(own, player.kind);
+  const captured = capturedByColor(game.moves)[color];
 
   return (
-    <div className="@container flex items-center gap-[12px] rounded-[10px] bg-[#161b25] px-[12px] py-[12px] sm:gap-[15px] sm:px-[15px]">
+    <div className="@container flex items-center gap-[12px] rounded-[10px] bg-[#161b25] px-[12px] py-[12px] sm:gap-[15px] sm:px-[15px] xl:py-[8px]">
       <span className="relative shrink-0">
-        {player.kind === "bot" ? (
-          <span className="flex size-[46px] items-center justify-center rounded-[10px] bg-[#252a35] text-[30px] text-auth-amber sm:size-[60px] sm:text-[36px]">
+        {player.kind === "engine" ? (
+          <span className="flex size-[46px] items-center justify-center rounded-[10px] bg-[#252a35] text-[30px] text-auth-amber sm:size-[60px] sm:text-[36px] xl:size-[48px] xl:text-[30px]">
             <RobotIcon aria-hidden />
           </span>
         ) : player.avatarUrl ? (
-          <Avatar src={player.avatarUrl} name={player.username} size={60} className="[&_img]:rounded-[10px] max-sm:!size-[46px]" />
+          <Avatar src={player.avatarUrl} name={player.username} size={60} className="[&_img]:rounded-[10px] max-sm:!size-[46px] xl:!size-[48px]" />
         ) : (
           <span
             aria-hidden
             className={cn(
-              "flex size-[46px] items-center justify-center rounded-[10px] font-display text-[22px] font-medium sm:size-[60px] sm:text-[30px]",
+              "flex size-[46px] items-center justify-center rounded-[10px] font-display text-[22px] font-medium sm:size-[60px] sm:text-[30px] xl:size-[48px] xl:text-[24px]",
               own ? "bg-auth-primary-strong text-[#06402a]" : "bg-[#252a35] text-auth-label",
             )}
           >
@@ -86,16 +89,16 @@ export function PlayerCard({ color }: { color: Color }) {
                 own ? "bg-[#21423e] text-auth-primary" : "hidden bg-[#303540] text-auth-label @min-[470px]:block",
               )}
             >
-              {player.kind === "bot" ? "BOT" : title}
+              {title}
             </span>
           ) : null}
         </p>
         <p className="mt-[4px] flex flex-wrap items-center gap-x-[8px] gap-y-1 font-mono text-[13px] font-bold tracking-[0.04em]">
           <span>Ratings</span><ComingSoon feature="ratings" />
-          {game.captured[color].length > 0 ? (
+          {captured.length > 0 ? (
             <>
               <span aria-hidden className="size-[4px] rounded-full bg-[#3d4b43]" />
-              <CapturedPieces pieces={game.captured[color]} capturedColor={opponentColor} />
+              <CapturedPieces pieces={captured} capturedColor={opponentColor} />
             </>
           ) : null}
         </p>
@@ -121,7 +124,7 @@ export function PlayerCard({ color }: { color: Color }) {
         </p>
       </div>
 
-      <GameClock color={color} own={own} />
+      <GameClock color={color} own={own} recordedMs={recordedMs} />
     </div>
   );
 }

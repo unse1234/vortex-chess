@@ -17,7 +17,7 @@ const controlBase =
 
 /** Flip, offer draw and resign, plus the dialogs those actions and the game's end open. */
 export function GameControls() {
-  const { game, commands, flipBoard } = useGameSession();
+  const { game, commands, flipBoard, connectionAllowsCommands } = useGameSession();
   const showToast = useToast();
   const [resignOpen, setResignOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
@@ -31,7 +31,10 @@ export function GameControls() {
   const finished = game.status.phase === "finished";
   const offeredByViewer = drawOffer?.state === "pending" && drawOffer.by === viewer.color;
   const incomingOffer = drawOffer?.state === "pending" && drawOffer.by !== viewer.color && viewer.canRespondToDraw;
-  const incomingOpen = incomingOffer && dismissedOfferAtPly !== game.moves.length;
+  const incomingOpen = incomingOffer && dismissedOfferAtPly !== game.ply;
+  const pendingType = commands.pending?.type ?? null;
+  // One command at a time, and only while synchronized.
+  const busy = commands.pending !== null || !connectionAllowsCommands;
 
   // Tell the player once when the opponent declines their offer.
   const announcedDecline = useRef<number | null>(null);
@@ -66,7 +69,7 @@ export function GameControls() {
         ) : (
           <button
             type="button"
-            disabled={!viewer.canOfferDraw || offeredByViewer || finished}
+            disabled={!viewer.canOfferDraw || offeredByViewer || finished || busy}
             onClick={() => setOfferOpen(true)}
             aria-haspopup="dialog"
             className={cn(controlBase, "bg-[#1b202a] text-auth-amber hover:bg-[#222834]")}
@@ -78,7 +81,7 @@ export function GameControls() {
 
         <button
           type="button"
-          disabled={!viewer.canResign || finished}
+          disabled={!viewer.canResign || finished || busy}
           onClick={() => setResignOpen(true)}
           aria-haspopup="dialog"
           className={cn(controlBase, "bg-[#400812] text-[#ffbeb5] hover:bg-[#4d1020]")}
@@ -91,24 +94,29 @@ export function GameControls() {
       <ResignDialog
         open={resignOpen}
         onOpenChange={setResignOpen}
-        pending={commands.resign.isPending}
-        onConfirm={() => commands.resign.mutate(undefined, { onSuccess: () => setResignOpen(false) })}
+        pending={pendingType === "game.resign"}
+        onConfirm={() => {
+          if (commands.resign()) setResignOpen(false);
+        }}
       />
       <OfferDrawDialog
         open={offerOpen}
         onOpenChange={setOfferOpen}
-        pending={commands.offer.isPending}
-        onConfirm={() => commands.offer.mutate(undefined, { onSuccess: () => setOfferOpen(false) })}
+        pending={pendingType === "game.draw.offer"}
+        onConfirm={() => {
+          if (commands.offerDraw()) setOfferOpen(false);
+        }}
       />
       <IncomingDrawDialog
         open={incomingOpen}
-        pending={commands.respond.isPending}
-        onDismiss={() => setDismissedOfferAtPly(game.moves.length)}
-        onAccept={() => commands.respond.mutate("accept")}
-        onDecline={() => commands.respond.mutate("decline")}
+        pending={busy}
+        onDismiss={() => setDismissedOfferAtPly(game.ply)}
+        onAccept={() => commands.respondToDraw("accept")}
+        onDecline={() => commands.respondToDraw("decline")}
       />
       {game.status.phase === "finished" ? (
         <GameResultDialog
+          gameId={game.id}
           open={startedInProgress && !resultDismissed}
           onOpenChange={(open) => setResultDismissed(!open)}
           result={game.status.result}

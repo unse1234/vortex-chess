@@ -29,7 +29,7 @@ export function ArenaHeader() {
   }
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 px-4 sm:h-[70px] xl:px-5">
+    <header className="flex h-[60px] shrink-0 items-center justify-between gap-3 px-4 sm:h-[70px] xl:h-[60px] xl:px-5">
       <div className="flex min-w-0 items-center gap-[10px] sm:gap-[18px]">
         <button type="button" onClick={leaveToLobby} className="flex shrink-0 items-center gap-[7px] rounded">
           <span aria-hidden className="size-[16px] bg-auth-primary" />

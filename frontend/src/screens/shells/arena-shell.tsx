@@ -14,7 +14,7 @@ export function ArenaShell({ children, className }: { children: ReactNode; class
     <ArenaLeaveGuardProvider>
       <div
         className={cn(
-          "flex min-h-dvh flex-1 flex-col bg-auth-page font-body text-auth-text [--vc-accent-strong:#6ff2bc] [--vc-accent:#4edea3] xl:h-dvh xl:min-h-[860px] xl:flex-none xl:overflow-hidden",
+          "flex min-h-dvh flex-1 flex-col bg-auth-page font-body text-auth-text [--vc-accent-strong:#6ff2bc] [--vc-accent:#4edea3] xl:h-dvh xl:min-h-[640px] xl:flex-none xl:overflow-hidden",
           className,
         )}
       >

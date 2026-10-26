@@ -1,36 +1,35 @@
 import { http, HttpResponse } from "msw";
 import type { GameResponse } from "@/features/games/types/game-api.types";
-import type { DrawResponse, MoveCommand } from "@/features/games/types/game-command.types";
 import type {
   MatchMessagesResponse,
   SendMatchMessageResponse,
 } from "@/features/social/types/match-chat.types";
 import { apiPath } from "@/mocks/handlers/api-path";
 import {
-  applyDrawOffer,
-  applyDrawResponse,
-  applyMove,
-  applyResign,
   buildSnapshot,
   getChat,
   getGameRoom,
   postChatMessage,
-  type MockFailure,
 } from "@/mocks/scenarios/game-room.scenario";
 import { simulateNetwork } from "@/mocks/scenarios/network";
 import { getMockSessionUser } from "@/mocks/session-state";
 
 const unauthenticated = () =>
-  HttpResponse.json({ code: "unauthenticated", message: "Sign in to continue." }, { status: 401 });
+  HttpResponse.json(
+    { code: "unauthenticated", message: "Sign in to continue." },
+    { status: 401 },
+  );
 
 const notFound = () =>
   HttpResponse.json(
-    { code: "game_not_found", message: "This game doesn't exist, or you don't have access to it." },
+    {
+      code: "game_not_found",
+      message: "This game doesn't exist, or you don't have access to it.",
+    },
     { status: 404 },
   );
 
-const failure = ({ status, code, message }: MockFailure) => HttpResponse.json({ code, message }, { status });
-
+/** Snapshots and match chat. Game commands go through the mock realtime client, as in production. */
 export const gameRoomHandlers = [
   http.get(apiPath("/games/:gameId"), async ({ params }) => {
     const unavailable = await simulateNetwork();
@@ -39,52 +38,7 @@ export const gameRoomHandlers = [
     if (!user) return unauthenticated();
     const game = getGameRoom(String(params.gameId));
     if (!game) return notFound();
-    return HttpResponse.json<GameResponse>({ game: buildSnapshot(game, user.id) });
-  }),
-
-  http.post(apiPath("/games/:gameId/moves"), async ({ params, request }) => {
-    const unavailable = await simulateNetwork();
-    if (unavailable) return unavailable;
-    const user = getMockSessionUser();
-    if (!user) return unauthenticated();
-    const game = getGameRoom(String(params.gameId));
-    if (!game) return notFound();
-    const outcome = applyMove(game, user.id, (await request.json()) as MoveCommand);
-    return outcome.ok ? HttpResponse.json<GameResponse>({ game: buildSnapshot(game, user.id) }) : failure(outcome);
-  }),
-
-  http.post(apiPath("/games/:gameId/resign"), async ({ params }) => {
-    const unavailable = await simulateNetwork();
-    if (unavailable) return unavailable;
-    const user = getMockSessionUser();
-    if (!user) return unauthenticated();
-    const game = getGameRoom(String(params.gameId));
-    if (!game) return notFound();
-    const outcome = applyResign(game, user.id);
-    return outcome.ok ? HttpResponse.json<GameResponse>({ game: buildSnapshot(game, user.id) }) : failure(outcome);
-  }),
-
-  http.post(apiPath("/games/:gameId/draw-offer"), async ({ params }) => {
-    const unavailable = await simulateNetwork();
-    if (unavailable) return unavailable;
-    const user = getMockSessionUser();
-    if (!user) return unauthenticated();
-    const game = getGameRoom(String(params.gameId));
-    if (!game) return notFound();
-    const outcome = applyDrawOffer(game, user.id);
-    return outcome.ok ? HttpResponse.json<GameResponse>({ game: buildSnapshot(game, user.id) }) : failure(outcome);
-  }),
-
-  http.post(apiPath("/games/:gameId/draw-offer/response"), async ({ params, request }) => {
-    const unavailable = await simulateNetwork();
-    if (unavailable) return unavailable;
-    const user = getMockSessionUser();
-    if (!user) return unauthenticated();
-    const game = getGameRoom(String(params.gameId));
-    if (!game) return notFound();
-    const { response } = (await request.json()) as { response: DrawResponse };
-    const outcome = applyDrawResponse(game, user.id, response);
-    return outcome.ok ? HttpResponse.json<GameResponse>({ game: buildSnapshot(game, user.id) }) : failure(outcome);
+    return HttpResponse.json<GameResponse>({ game: buildSnapshot(game) });
   }),
 
   http.get(apiPath("/games/:gameId/chat"), async ({ params }) => {
@@ -106,7 +60,10 @@ export const gameRoomHandlers = [
     const { body } = (await request.json()) as { body: string };
     const trimmed = body?.trim().slice(0, 200);
     if (!trimmed) {
-      return HttpResponse.json({ code: "empty_message", message: "Write something first." }, { status: 422 });
+      return HttpResponse.json(
+        { code: "empty_message", message: "Write something first." },
+        { status: 422 },
+      );
     }
     return HttpResponse.json<SendMatchMessageResponse>(
       { message: postChatMessage(gameId, user, trimmed) },

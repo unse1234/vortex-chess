@@ -3,7 +3,21 @@ import { formatMovetext, toMoveRows } from "@/features/games/pgn";
 import { summarizeResult } from "@/features/games/result-text";
 import type { GameMove, GameResult, ViewerPermissions } from "@/features/games/types/game.types";
 
-const move = (ply: number, san: string): GameMove => ({ ply, san, from: "e2", to: "e4", annotation: null });
+const move = (ply: number, san: string): GameMove => ({
+  ply,
+  color: ply % 2 === 1 ? "w" : "b",
+  san,
+  uci: "e2e4",
+  from: "e2",
+  to: "e4",
+  promotion: null,
+  captured: null,
+  fen: "8/8/8/8/8/8/8/8 w - - 0 1",
+  remainingMs: { w: 0, b: 0 },
+  elapsedMs: 0,
+  playedAt: "2026-10-26T00:00:00.000Z",
+  requestId: null,
+});
 
 describe("move rows and movetext", () => {
   const moves = [move(1, "d4"), move(2, "Nf6"), move(3, "c4"), move(4, "g6"), move(5, "Nc3")];
@@ -40,31 +54,18 @@ describe("summarizeResult", () => {
     canOfferDraw: false,
     canRespondToDraw: false,
   });
-  const spectator: ViewerPermissions = {
-    role: "spectator",
-    color: null,
-    canMove: false,
-    canResign: false,
-    canOfferDraw: false,
-    canRespondToDraw: false,
-  };
-  const whiteResigned: GameResult = { outcome: "black", reason: "resignation", ratingChange: { w: -12, b: 12 } };
+  const whiteResigned: GameResult = { outcome: "black", reason: "resignation" };
 
-  it("words the result from the viewer's side", () => {
-    expect(summarizeResult(whiteResigned, player("w"))).toMatchObject({ headline: "Defeat", tone: "loss", ratingChange: -12 });
-    expect(summarizeResult(whiteResigned, player("b"))).toMatchObject({ headline: "Victory", tone: "win", ratingChange: 12 });
+  it("speaks from the player's side", () => {
+    expect(summarizeResult(whiteResigned, player("w"))).toMatchObject({ headline: "Defeat", tone: "loss", detail: "Black won by resignation." });
+    expect(summarizeResult(whiteResigned, player("b"))).toMatchObject({ headline: "Victory", tone: "win", detail: "You won by resignation." });
   });
 
-  it("names the winner for spectators and shows no rating change", () => {
-    expect(summarizeResult(whiteResigned, spectator)).toMatchObject({
-      headline: "Black wins",
-      ratingChange: null,
-    });
-  });
-
-  it("handles draws and pending rating calculations", () => {
-    const draw: GameResult = { outcome: "draw", reason: "agreement", ratingChange: null };
-    expect(summarizeResult(draw, player("w"))).toMatchObject({ headline: "Draw", tone: "neutral", ratingChange: null });
-    expect(summarizeResult({ ...whiteResigned, ratingChange: null }, player("w")).ratingChange).toBeNull();
+  it("names every automatic draw rule", () => {
+    const draw = (reason: GameResult["reason"]) => summarizeResult({ outcome: "draw", reason }, player("w")).detail;
+    expect(draw("threefold-repetition")).toBe("The game ended in a draw by threefold repetition.");
+    expect(draw("fifty-move-rule")).toBe("The game ended in a draw by the fifty-move rule.");
+    expect(draw("insufficient-material")).toBe("The game ended in a draw by insufficient material.");
+    expect(draw("timeout-vs-insufficient-material")).toContain("time ran out");
   });
 });

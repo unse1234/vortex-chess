@@ -2,7 +2,6 @@
 
 import { ComingSoon } from "@/components/display/coming-soon";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { routes } from "@/config/routes";
 import { summarizeResult } from "@/features/games/result-text";
@@ -10,6 +9,7 @@ import type { GameResult, ViewerPermissions } from "@/features/games/types/game.
 import { cn } from "@/utils/cn";
 
 type GameResultDialogProps = {
+  gameId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   result: GameResult;
@@ -17,7 +17,7 @@ type GameResultDialogProps = {
 };
 
 /** Announces how a game ended, over the final position. */
-export function GameResultDialog({ open, onOpenChange, result, viewer }: GameResultDialogProps) {
+export function GameResultDialog({ gameId, open, onOpenChange, result, viewer }: GameResultDialogProps) {
   const summary = summarizeResult(result, viewer);
 
   return (
@@ -28,9 +28,7 @@ export function GameResultDialog({ open, onOpenChange, result, viewer }: GameRes
       description={summary.detail}
       footer={
         <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Review position
-          </Button>
+          <Link href={routes.game(gameId)} onClick={() => onOpenChange(false)} className="rounded-md px-4 py-2 text-sm font-semibold">Replay game</Link>
           <Link
             href={routes.play}
             data-autofocus

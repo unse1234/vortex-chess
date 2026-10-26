@@ -4,6 +4,8 @@ import {
   getPieceAt,
   isPromotionMove,
   parseCoordinateMove,
+  previewMove,
+  capturedByColor,
 } from "@/features/games/board-position";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -44,5 +46,30 @@ describe("parseCoordinateMove", () => {
     for (const input of ["", "e2", "e2e9", "i2i4", "e7e8k", "castle"]) {
       expect(parseCoordinateMove(input)).toBeNull();
     }
+  });
+});
+
+describe("provisional move preview", () => {
+  it("moves the piece and leaves the rest of the FEN untouched", () => {
+    expect(previewMove(START, "e2", "e4")).toBe("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1");
+  });
+
+  it("shows castling, en passant and promotion as the player intends", () => {
+    const castle = "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1";
+    expect(previewMove(castle, "e1", "g1").split(" ")[0]).toBe("r3k2r/8/8/8/8/8/8/R4RK1");
+    expect(previewMove(castle, "e1", "c1").split(" ")[0]).toBe("r3k2r/8/8/8/8/8/8/2KR3R");
+    const ep = "rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 3";
+    expect(previewMove(ep, "e5", "d6").split(" ")[0]).toBe("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR");
+    expect(previewMove("8/2P5/4k3/8/8/8/8/4K3 w - - 0 70", "c7", "c8", "n").split(" ")[0]).toBe("2N5/8/4k3/8/8/8/8/4K3");
+  });
+
+  it("collects captures per capturing colour", () => {
+    expect(
+      capturedByColor([
+        { color: "w", captured: null },
+        { color: "b", captured: "p" },
+        { color: "w", captured: "q" },
+      ]),
+    ).toEqual({ w: ["q"], b: ["p"] });
   });
 });

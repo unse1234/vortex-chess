@@ -1,14 +1,16 @@
 import { gameChannel } from "@/features/games/realtime/game-events.types";
-import type { MoveCommand } from "@/features/games/types/game-command.types";
+import type { GameCommandAck } from "@/features/games/types/game-command.types";
 import type {
   Color,
   DrawOffer,
-  GameAnalysisState,
   GameClocks,
+  GameMove,
   GameParticipant,
   GameResult,
   GameSnapshot,
+  GameUpdate,
   PromotionPiece,
+  Square,
   ViewerPermissions,
 } from "@/features/games/types/game.types";
 import { matchChatChannel, type ChatMessage } from "@/features/social/types/match-chat.types";
@@ -19,11 +21,14 @@ import { fromNow } from "@/mocks/fixtures/time";
 import { mockRealtimeClient } from "@/mocks/realtime/mock-realtime-client";
 import { getMockScenario } from "@/mocks/scenarios/network";
 import { getMockSessionUser } from "@/mocks/session-state";
+import { formatMovetext } from "@/features/games/pgn";
 
 /**
  * A stand-in for the game server. Games follow precomputed lines (see
  * demo-game.data.ts) rather than a chess engine: the server accepts the
  * scripted move, "thinks" for a moment, and replies with the scripted answer.
+ * Commands arrive through the mock realtime client and are acknowledged with
+ * the same shapes as the real server.
  */
 
 export const LIVE_GAME_ID = "vortex-demo";
@@ -33,6 +38,9 @@ const BOT_THINK_MS = 1_600;
 const DRAW_ANSWER_MS = 1_800;
 const INCREMENT_MS = 2_000;
 const LAST_SCRIPTED_PLY = demoGame.positions[demoGame.positions.length - 1].ply;
+const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+// Ply is relative to this scenario's saved initial position, whose FEN is move 70.
+const PROMOTION_PLY = 1;
 
 type GameKind = "line" | "promotion" | "archived";
 
@@ -49,7 +57,8 @@ type MockGame = {
   runningSide: Color | null;
   /** When `remainingMs` was last brought up to date. */
   clockAt: number;
-  spectatorCount: number;
+  startedAt: string;
+  endedAt: string | null;
   opponent: GameParticipant;
 };
 
@@ -57,26 +66,24 @@ const whitePlayer: GameParticipant = {
   id: demoAccount.id,
   username: demoAccount.username,
   avatarUrl: null,
-  rating: 2185,
   kind: "human",
-  rank: 142,
+  online: true,
 };
 
 const botPlayer: GameParticipant = {
   id: "bot-k4sp4r",
   username: "K4SP4R_AI",
   avatarUrl: null,
-  rating: 2140,
-  kind: "bot",
-  level: "LV.MAX",
+  kind: "engine",
+  online: true,
 };
 
 const games = new Map<string, MockGame>();
 
-export type MockFailure = { ok: false; status: number; code: string; message: string };
-type Outcome = { ok: true } | MockFailure;
+type MockFailure = { ok: false; code: string; message: string };
+type Outcome = { ok: true; move: GameMove | null } | MockFailure;
 
-const fail = (status: number, code: string, message: string): MockFailure => ({ ok: false, status, code, message });
+const fail = (code: string, message: string): MockFailure => ({ ok: false, code, message });
 
 // ---------------------------------------------------------------------------
 // Game lifecycle
@@ -92,7 +99,8 @@ function createGame(id: string): MockGame | null {
     result: null,
     drawOffer: null,
     clockAt: now,
-    spectatorCount: 48,
+    startedAt: new Date(now - 6 * 60_000).toISOString(),
+    endedAt: null,
     opponent: botPlayer,
   } satisfies Partial<MockGame>;
 
@@ -107,24 +115,23 @@ function createGame(id: string): MockGame | null {
   if (!recent) return null;
   const result: GameResult =
     recent.result === "win"
-      ? { outcome: "white", reason: "resignation", ratingChange: { w: 9, b: -9 } }
+      ? { outcome: "white", reason: "resignation" }
       : recent.result === "loss"
-        ? { outcome: "black", reason: "timeout", ratingChange: { w: -11, b: 11 } }
-        : { outcome: "draw", reason: "agreement", ratingChange: { w: 0, b: 0 } };
+        ? { outcome: "black", reason: "timeout" }
+        : { outcome: "draw", reason: "agreement" };
   return {
     ...base,
     kind: "archived",
     result,
     runningSide: null,
     remainingMs: { w: 177_000, b: 70_000 },
-    spectatorCount: 0,
+    endedAt: recent.endedAt,
     opponent: {
       id: recent.opponent.id,
       username: recent.opponent.username,
       avatarUrl: recent.opponent.avatarUrl,
-      rating: recent.opponent.rating,
       kind: "human",
-      rank: null,
+      online: false,
     },
   };
 }
@@ -154,35 +161,7 @@ function currentTurn(game: MockGame): Color {
 // Snapshot building
 // ---------------------------------------------------------------------------
 
-function whiteWinProbability(centipawns: number) {
-  return Math.round((50 + 50 * (2 / (1 + Math.exp(-0.00368208 * centipawns)) - 1)) * 10) / 10;
-}
-
-function analysisFor(args: {
-  centipawns: number;
-  materialBalance: number;
-  withOpening: boolean;
-}): GameAnalysisState {
-  return {
-    availability: "available",
-    data: {
-      engine: "Stockfish-NNUE-16",
-      depth: 28,
-      evaluation: { centipawns: args.centipawns, mateIn: null },
-      whiteWinProbability: whiteWinProbability(args.centipawns),
-      materialBalance: args.materialBalance,
-      opening: args.withOpening
-        ? { name: "King's Indian Defense", variation: "Classical Variation", eco: "E91" }
-        : null,
-      accuracy: 94.2,
-    },
-  };
-}
-
-function viewerPermissions(game: MockGame, userId: string): ViewerPermissions {
-  if (userId !== whitePlayer.id) {
-    return { role: "spectator", color: null, canMove: false, canResign: false, canOfferDraw: false, canRespondToDraw: false };
-  }
+function viewerPermissions(game: MockGame): ViewerPermissions {
   const live = game.result === null;
   const pendingOffer = game.drawOffer?.state === "pending";
   return {
@@ -195,7 +174,25 @@ function viewerPermissions(game: MockGame, userId: string): ViewerPermissions {
   };
 }
 
-export function buildSnapshot(game: MockGame, userId: string): GameSnapshot {
+function toGameMove(move: { ply: number; san: string; from: Square; to: Square; fen: string; captured: GameMove["captured"] }, remainingMs: Record<Color, number>): GameMove {
+  return {
+    ply: move.ply,
+    color: move.ply % 2 === 1 ? "w" : "b",
+    san: move.san,
+    uci: `${move.from}${move.to}`,
+    from: move.from,
+    to: move.to,
+    promotion: null,
+    captured: move.captured,
+    fen: move.fen,
+    remainingMs,
+    elapsedMs: 0,
+    playedAt: new Date().toISOString(),
+    requestId: null,
+  };
+}
+
+export function buildSnapshot(game: MockGame): GameSnapshot {
   const now = Date.now();
   settleClock(game, now);
   const clocks: GameClocks = {
@@ -203,62 +200,64 @@ export function buildSnapshot(game: MockGame, userId: string): GameSnapshot {
     runningSide: game.result ? null : game.runningSide,
     serverTime: now,
   };
-  const viewer = viewerPermissions(game, userId);
-
-  const common = {
-    id: game.id,
-    revision: game.revision,
-    rated: true,
-    timeControl: { category: "blitz", initialMs: 180_000, incrementMs: INCREMENT_MS },
-    region: "EU-CENTRAL",
-    spectatorCount: game.spectatorCount,
-    players: { w: whitePlayer, b: game.opponent },
-    clocks,
-    viewer,
-    drawOffer: game.drawOffer,
-  } as const;
-
+  const viewer = viewerPermissions(game);
   const status: GameSnapshot["status"] = game.result
     ? { phase: "finished", result: game.result }
     : { phase: "in-progress", turn: currentTurn(game) };
+  const resultToken = game.result?.outcome === "white" ? "1-0" : game.result?.outcome === "black" ? "0-1" : "1/2-1/2";
+
+  const common = {
+    id: game.id,
+    roomId: null,
+    revision: game.revision,
+    timeControl: { category: "blitz", initialMs: 180_000, incrementMs: INCREMENT_MS },
+    players: { w: whitePlayer, b: game.opponent },
+    clocks,
+    viewer,
+    status,
+    drawOffer: game.drawOffer,
+    startedAt: game.startedAt,
+    endedAt: game.endedAt,
+    pgn: null,
+  } as const;
 
   if (game.kind === "promotion") {
     const promoted = game.promotedTo ? promotionDemo.results[game.promotedTo] : null;
+    const moves: GameMove[] = promoted
+      ? [{ ...toGameMove({ ply: PROMOTION_PLY, san: promoted.san, ...promoted.lastMove, fen: promoted.fen, captured: null }, clocks.remainingMs), promotion: game.promotedTo, uci: `c7c8${game.promotedTo}` }]
+      : [];
     return {
       ...common,
+      pgn: game.result ? `[Event "Scripted demo"]\n[SetUp "1"]\n[FEN "${promotionDemo.startFen}"]\n[Result "${resultToken}"]\n\n${promoted ? `70. ${promoted.san} ` : ""}${resultToken}` : null,
+      initialFen: promotionDemo.startFen,
+      ply: promoted ? PROMOTION_PLY : PROMOTION_PLY - 1,
       fen: promoted?.fen ?? promotionDemo.startFen,
-      status,
-      moves: promoted
-        ? [{ ply: 139, san: promoted.san, from: promoted.lastMove.from, to: promoted.lastMove.to, annotation: "best" }]
-        : [],
+      moves,
       lastMove: promoted?.lastMove ?? null,
       checkSquare: promoted?.checkSquare ?? null,
-      captured: { w: [], b: [] },
       legalMoves: viewer.canMove ? promotionDemo.legalMoves : {},
-      analysis: analysisFor({
-        centipawns: promoted ? 1450 : 940,
-        materialBalance: promoted ? (game.promotedTo === "q" ? 9 : game.promotedTo === "r" ? 5 : 3) : 1,
-        withOpening: false,
-      }),
     };
   }
 
   const position = demoGame.positions[game.positionIndex];
+  const moves = demoGame.moves.slice(0, position.ply).map((move) => toGameMove(move, clocks.remainingMs));
   return {
     ...common,
+    pgn: game.result ? `${formatMovetext(moves)} ${resultToken}`.trim() : null,
+    initialFen: START_FEN,
+    ply: position.ply,
     fen: position.fen,
-    status,
-    moves: demoGame.moves.slice(0, position.ply),
+    moves,
     lastMove: position.lastMove,
     checkSquare: position.checkSquare,
-    captured: position.captured,
     legalMoves: viewer.canMove ? position.legalMoves : {},
-    analysis: analysisFor({
-      centipawns: position.evaluationCp,
-      materialBalance: position.materialBalance,
-      withOpening: true,
-    }),
   };
+}
+
+/** The compact update the real server would broadcast for the latest change. */
+function toUpdate(snapshot: GameSnapshot, move: GameMove | null): GameUpdate {
+  const { id, revision, ply, fen, status, clocks, lastMove, checkSquare, drawOffer, viewer, legalMoves, endedAt } = snapshot;
+  return { id, revision, ply, fen, status, clocks, lastMove, checkSquare, drawOffer, viewer, legalMoves, endedAt, move };
 }
 
 // ---------------------------------------------------------------------------
@@ -266,12 +265,10 @@ export function buildSnapshot(game: MockGame, userId: string): GameSnapshot {
 // ---------------------------------------------------------------------------
 
 function publishSnapshot(game: MockGame) {
-  const user = getMockSessionUser();
-  if (!user) return;
   mockRealtimeClient.publish({
     channel: gameChannel(game.id),
     type: "game.snapshot",
-    payload: buildSnapshot(game, user.id),
+    payload: { game: buildSnapshot(game) },
   });
 }
 
@@ -285,36 +282,36 @@ function finish(game: MockGame, result: GameResult) {
   game.result = result;
   game.runningSide = null;
   game.drawOffer = null;
+  game.endedAt = new Date().toISOString();
 }
 
-function requirePlayerOnMove(game: MockGame, userId: string): MockFailure | null {
-  if (game.result) return fail(409, "game_finished", "This game has already finished.");
-  if (userId !== whitePlayer.id || currentTurn(game) !== "w") {
-    return fail(403, "not_your_turn", "It isn't your turn to move.");
-  }
+function requirePlayerOnMove(game: MockGame): MockFailure | null {
+  if (game.result) return fail("game_finished", "This game has already finished.");
+  if (currentTurn(game) !== "w") return fail("not_your_turn", "It isn't your turn to move.");
   return null;
 }
 
-export function applyMove(game: MockGame, userId: string, command: MoveCommand): Outcome {
-  const blocked = requirePlayerOnMove(game, userId);
+type MovePayload = { expectedRevision: number; from: Square; to: Square; promotion?: PromotionPiece };
+
+function applyMove(game: MockGame, command: MovePayload): Outcome {
+  const blocked = requirePlayerOnMove(game);
   if (blocked) return blocked;
   if (command.expectedRevision !== game.revision) {
-    return fail(409, "stale_revision", "The position changed while you were moving. Your board has been refreshed.");
+    return fail("stale_revision", "The position changed while you were moving. Your board has been refreshed.");
   }
 
   if (game.kind === "promotion") return applyPromotion(game, command);
 
   const position = demoGame.positions[game.positionIndex];
   if (!position.legalMoves[command.from]?.includes(command.to)) {
-    return fail(422, "illegal_move", "That move isn't legal in this position.");
+    return fail("illegal_move", "That move isn't legal in this position.");
   }
   if (position.ply >= LAST_SCRIPTED_PLY) {
-    return fail(422, "preview_line_ended", "That's the end of the scripted preview game. You can still resign or offer a draw.");
+    return fail("preview_line_ended", "That's the end of the scripted preview game. You can still resign or offer a draw.");
   }
   const expected = demoGame.moves[position.ply];
   if (command.from !== expected.from || command.to !== expected.to) {
     return fail(
-      422,
       "preview_line",
       `This preview follows a scripted game. The server will accept ${expected.san} (${expected.from}–${expected.to}) here.`,
     );
@@ -327,24 +324,24 @@ export function applyMove(game: MockGame, userId: string, command: MoveCommand):
   game.drawOffer = null;
   bump(game);
   setTimeout(() => botReply(game), BOT_THINK_MS);
-  return { ok: true };
+  return { ok: true, move: buildSnapshot(game).moves.at(-1) ?? null };
 }
 
-function applyPromotion(game: MockGame, command: MoveCommand): Outcome {
+function applyPromotion(game: MockGame, command: MovePayload): Outcome {
   if (command.from !== "c7" || command.to !== "c8") {
-    return fail(422, "preview_line", "This scenario is about promotion: move the pawn from c7 to c8.");
+    return fail("preview_line", "This scenario is about promotion: move the pawn from c7 to c8.");
   }
-  if (!command.promotion) return fail(422, "illegal_move", "Choose a piece to promote to.");
+  if (!command.promotion) return fail("promotion_required", "Choose a piece to promote to.");
   settleClock(game);
   game.promotedTo = command.promotion;
   game.runningSide = "b";
   bump(game);
   setTimeout(() => {
     if (game.result) return;
-    finish(game, { outcome: "white", reason: "resignation", ratingChange: { w: 8, b: -8 } });
+    finish(game, { outcome: "white", reason: "resignation" });
     bump(game);
   }, BOT_THINK_MS);
-  return { ok: true };
+  return { ok: true, move: buildSnapshot(game).moves.at(-1) ?? null };
 }
 
 function botReply(game: MockGame) {
@@ -357,18 +354,16 @@ function botReply(game: MockGame) {
   bump(game);
 }
 
-export function applyResign(game: MockGame, userId: string): Outcome {
-  if (game.result) return fail(409, "game_finished", "This game has already finished.");
-  if (userId !== whitePlayer.id) return fail(403, "forbidden", "Only players can resign.");
-  finish(game, { outcome: "black", reason: "resignation", ratingChange: { w: -12, b: 12 } });
+function applyResign(game: MockGame): Outcome {
+  if (game.result) return fail("game_finished", "This game has already finished.");
+  finish(game, { outcome: "black", reason: "resignation" });
   bump(game);
-  return { ok: true };
+  return { ok: true, move: null };
 }
 
-export function applyDrawOffer(game: MockGame, userId: string): Outcome {
-  if (game.result) return fail(409, "game_finished", "This game has already finished.");
-  if (userId !== whitePlayer.id) return fail(403, "forbidden", "Only players can offer a draw.");
-  if (game.drawOffer?.state === "pending") return fail(409, "draw_pending", "A draw offer is already open.");
+function applyDrawOffer(game: MockGame): Outcome {
+  if (game.result) return fail("game_finished", "This game has already finished.");
+  if (game.drawOffer?.state === "pending") return fail("draw_offer_pending", "A draw offer is already open.");
   game.drawOffer = { by: "w", state: "pending" };
   bump(game);
   setTimeout(() => {
@@ -376,20 +371,48 @@ export function applyDrawOffer(game: MockGame, userId: string): Outcome {
     game.drawOffer = { by: "w", state: "declined" };
     bump(game);
   }, DRAW_ANSWER_MS);
-  return { ok: true };
+  return { ok: true, move: null };
 }
 
-export function applyDrawResponse(game: MockGame, userId: string, response: "accept" | "decline"): Outcome {
-  if (game.result) return fail(409, "game_finished", "This game has already finished.");
-  if (userId !== whitePlayer.id) return fail(403, "forbidden", "Only players can answer a draw offer.");
+function applyDrawResponse(game: MockGame, response: "accept" | "decline"): Outcome {
+  if (game.result) return fail("game_finished", "This game has already finished.");
   if (game.drawOffer?.state !== "pending" || game.drawOffer.by !== "b") {
-    return fail(409, "no_draw_offer", "There's no draw offer to answer.");
+    return fail("no_draw_offer", "There's no draw offer to answer.");
   }
-  if (response === "accept") finish(game, { outcome: "draw", reason: "agreement", ratingChange: { w: -2, b: 2 } });
+  if (response === "accept") finish(game, { outcome: "draw", reason: "agreement" });
   else game.drawOffer = null;
   bump(game);
-  return { ok: true };
+  return { ok: true, move: null };
 }
+
+/** Answers a command like the server: the outcome plus the state to reconcile. */
+function acknowledge(gameId: unknown, run: (game: MockGame) => Outcome): GameCommandAck {
+  const game = typeof gameId === "string" && getMockSessionUser() ? getGameRoom(gameId) : null;
+  if (!game) {
+    return { ok: false, error: { code: "game_not_found", message: "This game doesn't exist.", retryable: false }, game: null };
+  }
+  const outcome = run(game);
+  const snapshot = buildSnapshot(game);
+  return outcome.ok
+    ? { ok: true, duplicate: false, game: toUpdate(snapshot, outcome.move) }
+    : { ok: false, error: { code: outcome.code, message: outcome.message, retryable: false }, game: toUpdate(snapshot, null) };
+}
+
+type CommandPayload = { gameId?: unknown } & Record<string, unknown>;
+mockRealtimeClient.handleRequests("game.move", (payload) =>
+  acknowledge((payload as CommandPayload).gameId, (game) => applyMove(game, payload as MovePayload)),
+);
+mockRealtimeClient.handleRequests("game.resign", (payload) =>
+  acknowledge((payload as CommandPayload).gameId, applyResign),
+);
+mockRealtimeClient.handleRequests("game.draw.offer", (payload) =>
+  acknowledge((payload as CommandPayload).gameId, applyDrawOffer),
+);
+mockRealtimeClient.handleRequests("game.draw.respond", (payload) =>
+  acknowledge((payload as CommandPayload).gameId, (game) =>
+    applyDrawResponse(game, (payload as { response: "accept" | "decline" }).response),
+  ),
+);
 
 // ---------------------------------------------------------------------------
 // Timed scenario events (?mock=draw-offer, ?mock=reconnect)
@@ -412,7 +435,7 @@ function scheduleScenarioEvents(game: MockGame) {
     // An update lands while the connection is down: it is lost, and the
     // client must pick it up from a fresh snapshot after reconnecting.
     setTimeout(() => {
-      game.spectatorCount += 3;
+      game.opponent = { ...game.opponent, online: false };
       bump(game);
     }, 6_500);
   }

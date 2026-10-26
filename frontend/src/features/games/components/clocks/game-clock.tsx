@@ -12,11 +12,11 @@ const LOW_TIME_MS = 10_000;
  * One side's clock. It owns its own ticking, so a tick re-renders this box
  * only — never the board, move list or chat.
  */
-export function GameClock({ color, own }: { color: Color; own: boolean }) {
+export function GameClock({ color, own, recordedMs }: { color: Color; own: boolean; recordedMs?: number }) {
   const { game, receivedAt } = useGameSession();
-  const running = game.clocks.runningSide === color && game.status.phase === "in-progress";
+  const running = recordedMs === undefined && game.clocks.runningSide === color && game.status.phase === "in-progress";
   const remaining = useGameClock({
-    remainingMs: game.clocks.remainingMs[color],
+    remainingMs: recordedMs ?? game.clocks.remainingMs[color],
     running,
     receivedAt,
   });
@@ -27,9 +27,9 @@ export function GameClock({ color, own }: { color: Color; own: boolean }) {
   return (
     <div
       role="timer"
-      aria-label={`${name} clock${running ? ", running" : ""}`}
+      aria-label={`${name} clock${recordedMs !== undefined ? ", recorded" : running ? ", running" : ""}`}
       className={cn(
-        "flex h-[54px] w-[100px] shrink-0 flex-col items-center justify-center rounded-[6px] bg-[#252a35] sm:h-[62px] sm:w-[124px]",
+        "flex h-[54px] w-[100px] shrink-0 flex-col items-center justify-center rounded-[6px] bg-[#252a35] sm:h-[62px] sm:w-[124px] xl:h-[52px]",
         running && own && "bg-[#21423e]",
       )}
     >
@@ -39,11 +39,11 @@ export function GameClock({ color, own }: { color: Color; own: boolean }) {
           running ? (own ? "text-auth-primary" : "text-[#c1d1c6]") : "text-[#909c97]",
         )}
       >
-        Clock
+        {recordedMs !== undefined ? "Recorded" : "Clock"}
       </span>
       <span
         className={cn(
-          "mt-[4px] font-mono text-[24px] font-bold leading-none tracking-[0.02em] tabular-nums sm:mt-[5px] sm:text-[32px]",
+          "mt-[4px] font-mono text-[24px] font-bold leading-none tracking-[0.02em] tabular-nums sm:mt-[5px] sm:text-[32px] xl:mt-[3px] xl:text-[28px]",
           low ? "text-danger" : running ? (own ? "text-auth-primary" : "text-auth-amber") : "text-[#a3aeaa]",
         )}
       >

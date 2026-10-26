@@ -12,29 +12,20 @@ function PanelSkeleton({ className }: { className?: string }) {
   );
 }
 
-/** Loading placeholder shaped like the arena, so the page doesn't jump when data arrives. */
+/** Loading placeholder shaped like the arena (board column beside the move list), so the page doesn't jump when data arrives. */
 export function GameScreenSkeleton() {
   return (
     <div className="flex min-h-0 flex-1 flex-col" aria-busy="true" aria-label="Loading game">
-      <div className="flex flex-wrap items-center gap-4 px-4 pb-[18px] pt-[10px] xl:px-5 xl:pb-[25px]">
+      <div className="flex flex-wrap items-center gap-4 px-4 pb-3 pt-[6px] xl:px-5">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-5 w-40" />
         <Skeleton className="ml-auto h-10 w-72" />
       </div>
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 px-4 pb-4 xl:grid-cols-[382px_minmax(0,1fr)_382px] xl:grid-rows-[minmax(0,1fr)] xl:gap-0 xl:px-[15px] xl:pb-[15px]">
-        <div className="hidden flex-col gap-[15px] xl:flex">
-          <PanelSkeleton />
-          <PanelSkeleton className="flex-1" />
-        </div>
-        <div className="mx-auto flex w-full max-w-[675px] flex-col gap-[10px]">
-          <Skeleton className="h-[84px] w-full rounded-[10px]" />
-          <Skeleton className="aspect-square w-full rounded-[16px]" />
-          <Skeleton className="h-[84px] w-full rounded-[10px]" />
-        </div>
-        <div className="hidden flex-col gap-[15px] xl:flex">
-          <PanelSkeleton />
-          <PanelSkeleton className="flex-1" />
-        </div>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 px-4 pb-4 xl:grid-cols-[auto_340px] xl:grid-rows-[auto_minmax(0,1fr)_auto] xl:justify-center xl:gap-x-5 xl:px-5 xl:pb-3">
+        <Skeleton className="h-[68px] w-full rounded-[10px] xl:col-start-2 xl:row-start-1" />
+        <Skeleton className="aspect-square w-full rounded-[10px] xl:col-start-1 xl:row-span-3 xl:row-start-1 xl:h-full xl:w-auto" />
+        <Skeleton className="h-[68px] w-full rounded-[10px] xl:col-start-2 xl:row-start-3" />
+        <PanelSkeleton className="hidden xl:col-start-2 xl:row-start-2 xl:block" />
       </div>
     </div>
   );

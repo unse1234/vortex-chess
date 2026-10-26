@@ -26,236 +26,303 @@ export type DemoMove = {
   from: Square;
   to: Square;
   annotation: "best" | "book" | "inaccuracy" | null;
+  /** Position after the move. */
+  fen: string;
+  captured: PieceType | null;
 };
 
 export const demoGame = {
   startingPly: 20,
   moves: [
-  {
-    ply: 1,
-    san: "d4",
-    from: "d2",
-    to: "d4",
-    annotation: null
-  },
-  {
-    ply: 2,
-    san: "Nf6",
-    from: "g8",
-    to: "f6",
-    annotation: null
-  },
-  {
-    ply: 3,
-    san: "c4",
-    from: "c2",
-    to: "c4",
-    annotation: null
-  },
-  {
-    ply: 4,
-    san: "g6",
-    from: "g7",
-    to: "g6",
-    annotation: null
-  },
-  {
-    ply: 5,
-    san: "Nc3",
-    from: "b1",
-    to: "c3",
-    annotation: null
-  },
-  {
-    ply: 6,
-    san: "Bg7",
-    from: "f8",
-    to: "g7",
-    annotation: null
-  },
-  {
-    ply: 7,
-    san: "e4",
-    from: "e2",
-    to: "e4",
-    annotation: null
-  },
-  {
-    ply: 8,
-    san: "d6",
-    from: "d7",
-    to: "d6",
-    annotation: null
-  },
-  {
-    ply: 9,
-    san: "Nf3",
-    from: "g1",
-    to: "f3",
-    annotation: null
-  },
-  {
-    ply: 10,
-    san: "O-O",
-    from: "e8",
-    to: "g8",
-    annotation: null
-  },
-  {
-    ply: 11,
-    san: "Be2",
-    from: "f1",
-    to: "e2",
-    annotation: null
-  },
-  {
-    ply: 12,
-    san: "e5",
-    from: "e7",
-    to: "e5",
-    annotation: null
-  },
-  {
-    ply: 13,
-    san: "d5",
-    from: "d4",
-    to: "d5",
-    annotation: null
-  },
-  {
-    ply: 14,
-    san: "a5",
-    from: "a7",
-    to: "a5",
-    annotation: "book"
-  },
-  {
-    ply: 15,
-    san: "Bg5",
-    from: "c1",
-    to: "g5",
-    annotation: null
-  },
-  {
-    ply: 16,
-    san: "h6",
-    from: "h7",
-    to: "h6",
-    annotation: null
-  },
-  {
-    ply: 17,
-    san: "Bh4",
-    from: "g5",
-    to: "h4",
-    annotation: null
-  },
-  {
-    ply: 18,
-    san: "Na6",
-    from: "b8",
-    to: "a6",
-    annotation: null
-  },
-  {
-    ply: 19,
-    san: "Nd2",
-    from: "f3",
-    to: "d2",
-    annotation: "best"
-  },
-  {
-    ply: 20,
-    san: "Qe8",
-    from: "d8",
-    to: "e8",
-    annotation: "inaccuracy"
-  },
-  {
-    ply: 21,
-    san: "O-O",
-    from: "e1",
-    to: "g1",
-    annotation: null
-  },
-  {
-    ply: 22,
-    san: "Nh7",
-    from: "f6",
-    to: "h7",
-    annotation: null
-  },
-  {
-    ply: 23,
-    san: "Bg3",
-    from: "h4",
-    to: "g3",
-    annotation: "best"
-  },
-  {
-    ply: 24,
-    san: "f5",
-    from: "f7",
-    to: "f5",
-    annotation: null
-  },
-  {
-    ply: 25,
-    san: "exf5",
-    from: "e4",
-    to: "f5",
-    annotation: null
-  },
-  {
-    ply: 26,
-    san: "gxf5",
-    from: "g6",
-    to: "f5",
-    annotation: null
-  },
-  {
-    ply: 27,
-    san: "f3",
-    from: "f2",
-    to: "f3",
-    annotation: null
-  },
-  {
-    ply: 28,
-    san: "Nf6",
-    from: "h7",
-    to: "f6",
-    annotation: "inaccuracy"
-  },
-  {
-    ply: 29,
-    san: "Nb3",
-    from: "d2",
-    to: "b3",
-    annotation: null
-  },
-  {
-    ply: 30,
-    san: "Nc5",
-    from: "a6",
-    to: "c5",
-    annotation: null
-  },
-  {
-    ply: 31,
-    san: "Nxc5",
-    from: "b3",
-    to: "c5",
-    annotation: "best"
-  },
-  {
-    ply: 32,
-    san: "dxc5",
-    from: "d6",
-    to: "c5",
-    annotation: null
-  }
-] as DemoMove[],
+    {
+      ply: 1,
+      san: "d4",
+      from: "d2",
+      to: "d4",
+      annotation: null,
+      fen: "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1",
+      captured: null
+    },
+    {
+      ply: 2,
+      san: "Nf6",
+      from: "g8",
+      to: "f6",
+      annotation: null,
+      fen: "rnbqkb1r/pppppppp/5n2/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 1 2",
+      captured: null
+    },
+    {
+      ply: 3,
+      san: "c4",
+      from: "c2",
+      to: "c4",
+      annotation: null,
+      fen: "rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq - 0 2",
+      captured: null
+    },
+    {
+      ply: 4,
+      san: "g6",
+      from: "g7",
+      to: "g6",
+      annotation: null,
+      fen: "rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3",
+      captured: null
+    },
+    {
+      ply: 5,
+      san: "Nc3",
+      from: "b1",
+      to: "c3",
+      annotation: null,
+      fen: "rnbqkb1r/pppppp1p/5np1/8/2PP4/2N5/PP2PPPP/R1BQKBNR b KQkq - 1 3",
+      captured: null
+    },
+    {
+      ply: 6,
+      san: "Bg7",
+      from: "f8",
+      to: "g7",
+      annotation: null,
+      fen: "rnbqk2r/ppppppbp/5np1/8/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 2 4",
+      captured: null
+    },
+    {
+      ply: 7,
+      san: "e4",
+      from: "e2",
+      to: "e4",
+      annotation: null,
+      fen: "rnbqk2r/ppppppbp/5np1/8/2PPP3/2N5/PP3PPP/R1BQKBNR b KQkq - 0 4",
+      captured: null
+    },
+    {
+      ply: 8,
+      san: "d6",
+      from: "d7",
+      to: "d6",
+      annotation: null,
+      fen: "rnbqk2r/ppp1ppbp/3p1np1/8/2PPP3/2N5/PP3PPP/R1BQKBNR w KQkq - 0 5",
+      captured: null
+    },
+    {
+      ply: 9,
+      san: "Nf3",
+      from: "g1",
+      to: "f3",
+      annotation: null,
+      fen: "rnbqk2r/ppp1ppbp/3p1np1/8/2PPP3/2N2N2/PP3PPP/R1BQKB1R b KQkq - 1 5",
+      captured: null
+    },
+    {
+      ply: 10,
+      san: "O-O",
+      from: "e8",
+      to: "g8",
+      annotation: null,
+      fen: "rnbq1rk1/ppp1ppbp/3p1np1/8/2PPP3/2N2N2/PP3PPP/R1BQKB1R w KQ - 2 6",
+      captured: null
+    },
+    {
+      ply: 11,
+      san: "Be2",
+      from: "f1",
+      to: "e2",
+      annotation: null,
+      fen: "rnbq1rk1/ppp1ppbp/3p1np1/8/2PPP3/2N2N2/PP2BPPP/R1BQK2R b KQ - 3 6",
+      captured: null
+    },
+    {
+      ply: 12,
+      san: "e5",
+      from: "e7",
+      to: "e5",
+      annotation: null,
+      fen: "rnbq1rk1/ppp2pbp/3p1np1/4p3/2PPP3/2N2N2/PP2BPPP/R1BQK2R w KQ - 0 7",
+      captured: null
+    },
+    {
+      ply: 13,
+      san: "d5",
+      from: "d4",
+      to: "d5",
+      annotation: null,
+      fen: "rnbq1rk1/ppp2pbp/3p1np1/3Pp3/2P1P3/2N2N2/PP2BPPP/R1BQK2R b KQ - 0 7",
+      captured: null
+    },
+    {
+      ply: 14,
+      san: "a5",
+      from: "a7",
+      to: "a5",
+      annotation: "book",
+      fen: "rnbq1rk1/1pp2pbp/3p1np1/p2Pp3/2P1P3/2N2N2/PP2BPPP/R1BQK2R w KQ - 0 8",
+      captured: null
+    },
+    {
+      ply: 15,
+      san: "Bg5",
+      from: "c1",
+      to: "g5",
+      annotation: null,
+      fen: "rnbq1rk1/1pp2pbp/3p1np1/p2Pp1B1/2P1P3/2N2N2/PP2BPPP/R2QK2R b KQ - 1 8",
+      captured: null
+    },
+    {
+      ply: 16,
+      san: "h6",
+      from: "h7",
+      to: "h6",
+      annotation: null,
+      fen: "rnbq1rk1/1pp2pb1/3p1npp/p2Pp1B1/2P1P3/2N2N2/PP2BPPP/R2QK2R w KQ - 0 9",
+      captured: null
+    },
+    {
+      ply: 17,
+      san: "Bh4",
+      from: "g5",
+      to: "h4",
+      annotation: null,
+      fen: "rnbq1rk1/1pp2pb1/3p1npp/p2Pp3/2P1P2B/2N2N2/PP2BPPP/R2QK2R b KQ - 1 9",
+      captured: null
+    },
+    {
+      ply: 18,
+      san: "Na6",
+      from: "b8",
+      to: "a6",
+      annotation: null,
+      fen: "r1bq1rk1/1pp2pb1/n2p1npp/p2Pp3/2P1P2B/2N2N2/PP2BPPP/R2QK2R w KQ - 2 10",
+      captured: null
+    },
+    {
+      ply: 19,
+      san: "Nd2",
+      from: "f3",
+      to: "d2",
+      annotation: "best",
+      fen: "r1bq1rk1/1pp2pb1/n2p1npp/p2Pp3/2P1P2B/2N5/PP1NBPPP/R2QK2R b KQ - 3 10",
+      captured: null
+    },
+    {
+      ply: 20,
+      san: "Qe8",
+      from: "d8",
+      to: "e8",
+      annotation: "inaccuracy",
+      fen: "r1b1qrk1/1pp2pb1/n2p1npp/p2Pp3/2P1P2B/2N5/PP1NBPPP/R2QK2R w KQ - 4 11",
+      captured: null
+    },
+    {
+      ply: 21,
+      san: "O-O",
+      from: "e1",
+      to: "g1",
+      annotation: null,
+      fen: "r1b1qrk1/1pp2pb1/n2p1npp/p2Pp3/2P1P2B/2N5/PP1NBPPP/R2Q1RK1 b - - 5 11",
+      captured: null
+    },
+    {
+      ply: 22,
+      san: "Nh7",
+      from: "f6",
+      to: "h7",
+      annotation: null,
+      fen: "r1b1qrk1/1pp2pbn/n2p2pp/p2Pp3/2P1P2B/2N5/PP1NBPPP/R2Q1RK1 w - - 6 12",
+      captured: null
+    },
+    {
+      ply: 23,
+      san: "Bg3",
+      from: "h4",
+      to: "g3",
+      annotation: "best",
+      fen: "r1b1qrk1/1pp2pbn/n2p2pp/p2Pp3/2P1P3/2N3B1/PP1NBPPP/R2Q1RK1 b - - 7 12",
+      captured: null
+    },
+    {
+      ply: 24,
+      san: "f5",
+      from: "f7",
+      to: "f5",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3bn/n2p2pp/p2Ppp2/2P1P3/2N3B1/PP1NBPPP/R2Q1RK1 w - - 0 13",
+      captured: null
+    },
+    {
+      ply: 25,
+      san: "exf5",
+      from: "e4",
+      to: "f5",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3bn/n2p2pp/p2PpP2/2P5/2N3B1/PP1NBPPP/R2Q1RK1 b - - 0 13",
+      captured: "p"
+    },
+    {
+      ply: 26,
+      san: "gxf5",
+      from: "g6",
+      to: "f5",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3bn/n2p3p/p2Ppp2/2P5/2N3B1/PP1NBPPP/R2Q1RK1 w - - 0 14",
+      captured: "p"
+    },
+    {
+      ply: 27,
+      san: "f3",
+      from: "f2",
+      to: "f3",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3bn/n2p3p/p2Ppp2/2P5/2N2PB1/PP1NB1PP/R2Q1RK1 b - - 0 14",
+      captured: null
+    },
+    {
+      ply: 28,
+      san: "Nf6",
+      from: "h7",
+      to: "f6",
+      annotation: "inaccuracy",
+      fen: "r1b1qrk1/1pp3b1/n2p1n1p/p2Ppp2/2P5/2N2PB1/PP1NB1PP/R2Q1RK1 w - - 1 15",
+      captured: null
+    },
+    {
+      ply: 29,
+      san: "Nb3",
+      from: "d2",
+      to: "b3",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3b1/n2p1n1p/p2Ppp2/2P5/1NN2PB1/PP2B1PP/R2Q1RK1 b - - 2 15",
+      captured: null
+    },
+    {
+      ply: 30,
+      san: "Nc5",
+      from: "a6",
+      to: "c5",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3b1/3p1n1p/p1nPpp2/2P5/1NN2PB1/PP2B1PP/R2Q1RK1 w - - 3 16",
+      captured: null
+    },
+    {
+      ply: 31,
+      san: "Nxc5",
+      from: "b3",
+      to: "c5",
+      annotation: "best",
+      fen: "r1b1qrk1/1pp3b1/3p1n1p/p1NPpp2/2P5/2N2PB1/PP2B1PP/R2Q1RK1 b - - 0 16",
+      captured: "n"
+    },
+    {
+      ply: 32,
+      san: "dxc5",
+      from: "d6",
+      to: "c5",
+      annotation: null,
+      fen: "r1b1qrk1/1pp3b1/5n1p/p1pPpp2/2P5/2N2PB1/PP2B1PP/R2Q1RK1 w - - 0 17",
+      captured: "n"
+    }
+  ] as DemoMove[],
   positions: [
   {
     ply: 20,

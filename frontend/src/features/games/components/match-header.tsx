@@ -6,7 +6,7 @@ import { useGameSession } from "@/features/games/providers/game-session-provider
 import { formatTimeControl } from "@/utils/format-time-control";
 import { cn } from "@/utils/cn";
 
-/** Match summary strip: ranked status, time control, region and latency, audience. */
+/** Match summary strip: casual status, time control, connection and latency, audience. */
 export function MatchHeader({ latencyMs }: { latencyMs: number | undefined }) {
   const { game, connection } = useGameSession();
 
@@ -24,7 +24,7 @@ export function MatchHeader({ latencyMs }: { latencyMs: number | undefined }) {
 
       <p className="flex items-center gap-[8px] font-mono text-[14px] font-bold tracking-[0.08em] text-auth-label">
         <ServerIcon aria-hidden className="text-[20px] text-auth-primary" />
-        {game.region}
+        {connection === "live" ? "LIVE" : "OFFLINE"}
         <span className={cn(latencyMs === undefined && "text-auth-dim", latencyMs !== undefined && "text-auth-primary")}>
           ({latencyMs === undefined ? "--" : latencyMs}ms)
         </span>
@@ -36,10 +36,10 @@ export function MatchHeader({ latencyMs }: { latencyMs: number | undefined }) {
         Spectating <ComingSoon feature="spectating" />
       </p>
 
-      {connection === "reconnecting" || connection === "resyncing" ? (
+      {connection !== "live" ? (
         <p className="flex items-center gap-[8px] font-mono text-[12px] font-bold tracking-[0.1em] text-auth-amber" role="status">
           <EqualizerIcon aria-hidden className="animate-pulse text-[18px]" />
-          {connection === "reconnecting" ? "RECONNECTING…" : "RESYNCING…"}
+          {connection === "reconnecting" ? "RECONNECTING…" : connection === "resyncing" ? "RESYNCING…" : "CONNECTING…"}
         </p>
       ) : null}
     </div>

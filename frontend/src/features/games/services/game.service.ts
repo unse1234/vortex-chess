@@ -1,34 +1,29 @@
 import { httpClient } from "@/lib/http/browser-client";
+import type { RealtimeClient } from "@/lib/realtime/realtime-contract";
 import type { GameResponse } from "@/features/games/types/game-api.types";
-import type { DrawResponse, MoveCommand } from "@/features/games/types/game-command.types";
+import type { GameCommandAck, GameCommandType } from "@/features/games/types/game-command.types";
 import type { GameSnapshot } from "@/features/games/types/game.types";
 
 const gamePath = (gameId: string) => `/games/${encodeURIComponent(gameId)}`;
 
+/** The complete authorized snapshot, including the accepted move history. */
 export async function getGame(gameId: string, signal?: AbortSignal): Promise<GameSnapshot> {
   const { data } = await httpClient.get<GameResponse>(gamePath(gameId), { signal });
   return data.game;
 }
 
-/** Asks the server to play a move; the answer is the authoritative snapshot or a rejection. */
-export async function submitMove(gameId: string, command: MoveCommand): Promise<GameSnapshot> {
-  const { data } = await httpClient.post<GameResponse>(`${gamePath(gameId)}/moves`, command);
-  return data.game;
-}
+const COMMAND_TIMEOUT_MS = 5_000;
 
-export async function resignGame(gameId: string): Promise<GameSnapshot> {
-  const { data } = await httpClient.post<GameResponse>(`${gamePath(gameId)}/resign`);
-  return data.game;
-}
-
-export async function offerDraw(gameId: string): Promise<GameSnapshot> {
-  const { data } = await httpClient.post<GameResponse>(`${gamePath(gameId)}/draw-offer`);
-  return data.game;
-}
-
-export async function respondToDraw(gameId: string, response: DrawResponse): Promise<GameSnapshot> {
-  const { data } = await httpClient.post<GameResponse>(`${gamePath(gameId)}/draw-offer/response`, {
-    response,
-  });
-  return data.game;
+/**
+ * Sends a game command over the realtime connection and returns the server's
+ * acknowledgement. Rejects with RealtimeRequestError when there is no answer;
+ * a "timeout" leaves the outcome unknown, so callers resend the identical
+ * command (same request id) once reconnected.
+ */
+export async function sendGameCommand(
+  realtime: RealtimeClient,
+  type: GameCommandType,
+  payload: Record<string, unknown>,
+): Promise<GameCommandAck> {
+  return (await realtime.request(type, payload, { timeoutMs: COMMAND_TIMEOUT_MS })) as GameCommandAck;
 }

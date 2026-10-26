@@ -1,9 +1,10 @@
 "use client";
 
 import { Dialog } from "@/components/ui/dialog";
+import { BoardPiece } from "@/features/games/components/board/chessboard-adapter";
 import type { Color, PromotionPiece } from "@/features/games/types/game.types";
 
-const choices: readonly { piece: PromotionPiece; letter: string; label: string }[] = [
+const choices: readonly { piece: PromotionPiece; letter: "Q" | "R" | "B" | "N"; label: string }[] = [
   { piece: "q", letter: "Q", label: "Queen" },
   { piece: "r", letter: "R", label: "Rook" },
   { piece: "b", letter: "B", label: "Bishop" },
@@ -37,8 +38,9 @@ export function PromotionDialog({ open, color, onSelect, onCancel }: PromotionDi
             onClick={() => onSelect(piece)}
             className="flex flex-col items-center gap-2 rounded-md bg-surface-raised px-2 py-4 text-[13px] font-semibold text-fg transition-colors hover:bg-surface-hover"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- decorative SVG sprite */}
-            <img src={`/chess/pieces/${color}${letter}.svg`} alt="" className="size-12" />
+            <span aria-hidden className="size-14">
+              <BoardPiece code={`${color}${letter}`} />
+            </span>
             {label}
           </button>
         ))}

@@ -1,4 +1,4 @@
-import type { Color, PromotionPiece, Square } from "@/features/games/types/game.types";
+import type { Color, PieceType, PromotionPiece, Square } from "@/features/games/types/game.types";
 
 /**
  * Read-only helpers over the board placement of a FEN string, for display
@@ -61,4 +61,57 @@ export function parseCoordinateMove(
     to: match[2].toLowerCase() as Square,
     promotion,
   };
+}
+
+function placementOf(pieces: Map<Square, string>): string {
+  const ranks: string[] = [];
+  for (let rank = 8; rank >= 1; rank -= 1) {
+    let text = "";
+    let empty = 0;
+    for (const file of FILES) {
+      const piece = pieces.get(`${file}${rank}` as Square);
+      if (piece) {
+        text += `${empty || ""}${piece}`;
+        empty = 0;
+      } else empty += 1;
+    }
+    ranks.push(text + (empty || ""));
+  }
+  return ranks.join("/");
+}
+
+/**
+ * Provisional placement while a move awaits the server's answer, so a dropped
+ * piece stays where the player put it. Display only: the rest of the FEN is
+ * kept as is, and the accepted position replaces it on acknowledgement (or the
+ * piece returns if the move is refused).
+ */
+export function previewMove(fen: string, from: Square, to: Square, promotion?: PromotionPiece): string {
+  const pieces = parsePlacement(fen);
+  const piece = pieces.get(from);
+  if (!piece) return fen;
+  const pawn = piece.toLowerCase() === "p";
+  // A pawn moving diagonally onto an empty square captures en passant.
+  if (pawn && from[0] !== to[0] && !pieces.has(to)) pieces.delete(`${to[0]}${from[1]}` as Square);
+  // A king moving two files castles; its rook jumps over it.
+  if (piece.toLowerCase() === "k" && Math.abs(FILES.indexOf(from[0]) - FILES.indexOf(to[0])) === 2) {
+    const kingside = to[0] === "g";
+    const rookFrom = `${kingside ? "h" : "a"}${from[1]}` as Square;
+    const rook = pieces.get(rookFrom);
+    if (rook) {
+      pieces.delete(rookFrom);
+      pieces.set(`${kingside ? "f" : "d"}${from[1]}` as Square, rook);
+    }
+  }
+  pieces.delete(from);
+  const placed = pawn && promotion ? (pieceColor(piece) === "w" ? promotion.toUpperCase() : promotion) : piece;
+  pieces.set(to, placed);
+  return [placementOf(pieces), ...fen.split(" ").slice(1)].join(" ");
+}
+
+/** Pieces captured BY each colour, from the server's move records. */
+export function capturedByColor(moves: readonly { color: Color; captured: PieceType | null }[]) {
+  const captured: Record<Color, PieceType[]> = { w: [], b: [] };
+  for (const move of moves) if (move.captured) captured[move.color].push(move.captured);
+  return captured;
 }

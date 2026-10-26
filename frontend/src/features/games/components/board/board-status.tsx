@@ -1,4 +1,5 @@
 import type { GameConnection } from "@/features/games/providers/game-session-provider";
+import type { PendingCommand } from "@/features/games/types/game-command.types";
 import type { GameSnapshot } from "@/features/games/types/game.types";
 import { cn } from "@/utils/cn";
 
@@ -7,17 +8,25 @@ type StatusTone = "active" | "idle" | "warning";
 function describeOutcome(game: GameSnapshot & { status: { phase: "finished" } }) {
   const { outcome, reason } = game.status.result;
   const side = outcome === "draw" ? "DRAW" : `${outcome.toUpperCase()} WINS`;
-  return `${side} // ${reason.toUpperCase()}`;
+  return `${side} // ${reason.replace(/-/g, " ").toUpperCase()}`;
 }
 
-/** Plain-language status line shown under the board, derived from the snapshot and connection. */
+/** Plain-language status line shown under the board, derived from the state and connection. */
 export function describeBoardStatus(
   game: GameSnapshot,
   connection: GameConnection,
-  movePending: boolean,
+  pending: PendingCommand | null,
+  reviewPly: number | null,
 ): { left: string; right: string; tone: StatusTone } {
-  const fullMove = Math.floor(game.moves.length / 2) + 1;
-
+  if (reviewPly !== null) {
+    const behind = game.ply - reviewPly;
+    return {
+      // Move-number notation: "12." is White's twelfth move, "12..." Black's reply.
+      left: reviewPly === 0 ? "REVIEWING START" : `REVIEWING ${Math.ceil(reviewPly / 2)}${reviewPly % 2 ? "." : "..."}`,
+      right: `${behind} NEWER MOVE${behind === 1 ? "" : "S"} // BOARD READ-ONLY`,
+      tone: "warning",
+    };
+  }
   if (game.status.phase === "finished") {
     return {
       left: "GAME COMPLETE",
@@ -26,21 +35,25 @@ export function describeBoardStatus(
     };
   }
   if (connection === "reconnecting") {
-    return { left: "CONNECTION LOST", right: "MOVES PAUSED // RECONNECTING", tone: "warning" };
+    return { left: "CONNECTION LOST", right: "CLOCKS RUNNING // RECONNECTING", tone: "warning" };
   }
   if (connection === "resyncing") {
-    return { left: "CONNECTION RESTORED", right: "RESYNCING POSITION", tone: "warning" };
+    return { left: "SYNCHRONIZING", right: "FETCHING LATEST POSITION", tone: "warning" };
+  }
+  if (connection === "connecting" || connection === "polling") {
+    return { left: "CONNECTING", right: "MOVES OPEN ONCE CONNECTED", tone: "warning" };
   }
 
   const turn = game.status.turn;
   const mover = game.players[turn];
   const left = `${turn === "w" ? "WHITE" : "BLACK"} IN COMBAT`;
-  const prefix = `MOVE ${fullMove} //`;
+  const prefix = `MOVE ${Math.floor(game.ply / 2) + 1} //`;
 
-  if (movePending) return { left, right: `${prefix} TRANSMITTING MOVE`, tone: "active" };
+  if (pending?.status === "uncertain") return { left, right: `${prefix} CONFIRMING WITH SERVER`, tone: "warning" };
+  if (pending) return { left, right: `${prefix} TRANSMITTING`, tone: "active" };
   if (game.viewer.color === turn) return { left, right: `${prefix} AWAITING YOUR MOVE`, tone: "active" };
-  if (mover.kind === "bot") return { left, right: `${prefix} PENDING BOT RESOLUTION`, tone: "active" };
-  return { left, right: `${prefix} AWAITING ${game.viewer.role === "player" ? "OPPONENT" : turn === "w" ? "WHITE" : "BLACK"}`, tone: "active" };
+  if (mover.kind === "engine") return { left, right: `${prefix} ENGINE THINKING`, tone: "active" };
+  return { left, right: `${prefix} AWAITING OPPONENT`, tone: "active" };
 }
 
 const dotClasses: Record<StatusTone, string> = {
@@ -67,13 +80,13 @@ export function BoardStatus({
   return (
     <p
       aria-live="polite"
-      className="flex items-center justify-between gap-3 px-1 pt-[10px] font-mono text-[11px] font-bold tracking-[0.08em] @min-[520px]:text-[13px] @min-[520px]:tracking-[0.14em]"
+      className="flex h-[30px] items-end justify-between gap-3 px-1 pb-[3px] font-mono text-[11px] font-bold tracking-[0.08em] @min-[520px]:text-[13px] @min-[520px]:tracking-[0.14em]"
     >
       <span className={cn("flex items-center gap-[8px] whitespace-nowrap", textClasses[tone])}>
         <span aria-hidden className={cn("size-[6px] rounded-full", dotClasses[tone])} />
         {left}
       </span>
-      <span className="text-right text-auth-label">{right}</span>
+      <span className="min-w-0 truncate text-right text-auth-label">{right}</span>
     </p>
   );
 }
