@@ -5,6 +5,7 @@ import type { GameHistoryInput } from '../games.schemas';
 import { timeControlOf } from '../../rooms/time-controls';
 import { gameIdSchema } from '../games.schemas';
 import { ApiException } from '../../../common/errors/api-exception';
+import { ENGINE_PLAYER_ID } from './game-state';
 
 @Injectable()
 export class GameHistoryService {
@@ -73,19 +74,21 @@ export class GameHistoryService {
         endedAt: true,
         startedAt: true,
         result: true,
+        mode: true,
         initialMs: true,
         incrementMs: true,
         participants: {
           select: {
             color: true,
+            engineName: true,
             user: { select: { id: true, username: true } },
           },
         },
       },
     });
     const items = rows.slice(0, input.limit).map((game) => {
-      const viewer = game.participants.find((p) => p.user.id === userId)!;
-      const opponent = game.participants.find((p) => p.user.id !== userId)!;
+      const viewer = game.participants.find((p) => p.user?.id === userId)!;
+      const opponent = game.participants.find((p) => p !== viewer)!;
       const side = viewer.color === 'WHITE' ? 'w' : 'b';
       const won = (game.result === 'WHITE_WINS') === (side === 'w');
       return {
@@ -93,16 +96,20 @@ export class GameHistoryService {
         endedAt: game.endedAt!.toISOString(),
         startedAt: game.startedAt.toISOString(),
         side,
-        mode: 'friends' as const,
+        mode: game.mode === 'ENGINE' ? ('engine' as const) : ('friends' as const),
         timeControl: timeControlOf(game),
         result:
-          game.result === 'DRAW'
-            ? ('draw' as const)
-            : won
-              ? ('win' as const)
-              : ('loss' as const),
-        viewer: { ...viewer.user, avatarUrl: null },
-        opponent: { ...opponent.user, avatarUrl: null },
+          game.result === 'ABORTED'
+            ? ('aborted' as const)
+            : game.result === 'DRAW'
+              ? ('draw' as const)
+              : won
+                ? ('win' as const)
+                : ('loss' as const),
+        viewer: { ...viewer.user!, avatarUrl: null },
+        opponent: opponent.user
+          ? { ...opponent.user, avatarUrl: null, kind: 'human' as const }
+          : { id: ENGINE_PLAYER_ID, username: opponent.engineName ?? 'Engine', avatarUrl: null, kind: 'engine' as const },
       };
     });
     const last = rows[input.limit - 1];

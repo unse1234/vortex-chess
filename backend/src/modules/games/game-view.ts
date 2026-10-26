@@ -1,6 +1,12 @@
 import { readingAt } from './clocks/game-clock';
-import { opposite, type Color, type Termination } from './rules/chess-rules';
-import { colorOf, type GameRuntime, type GameState, type MoveRecord } from './services/game-state';
+import { isAborted, opposite, type Color, type Termination } from './rules/chess-rules';
+import {
+  colorOf,
+  type GameMode,
+  type GameRuntime,
+  type GameState,
+  type MoveRecord,
+} from './services/game-state';
 import { timeControlOf, type TimeControl } from '../rooms/time-controls';
 import type { PlayerProfile } from '../users/users.service';
 
@@ -8,7 +14,8 @@ export type GameStatusView =
   | { phase: 'in-progress'; turn: Color }
   | {
       phase: 'finished';
-      result: { outcome: 'white' | 'black' | 'draw'; reason: Termination };
+      /** `aborted`: an engine game ended by an engine-service failure, with no result. */
+      result: { outcome: 'white' | 'black' | 'draw' | 'aborted'; reason: Termination };
     };
 
 export type MoveView = {
@@ -66,11 +73,26 @@ export type GameLiveView = {
   move: MoveView | null;
 };
 
-export type GamePlayerView = PlayerProfile & { kind: 'human'; online: boolean };
+export type GamePlayerView = PlayerProfile & { kind: 'human' | 'engine'; online: boolean };
+
+/**
+ * The engine's search for the current turn. Not game state: it never changes
+ * the revision, and it applies only while `revision` equals the game's.
+ */
+export type EngineTurnView = {
+  revision: number;
+  color: Color;
+  phase: 'queued' | 'thinking' | 'retrying';
+  attempt: number;
+  /** Server time this phase began. */
+  since: number;
+};
 
 /** Complete authorized state: the initial load and every resynchronization. */
 export type GameSnapshotView = Omit<GameLiveView, 'move'> & {
   roomId: string | null;
+  mode: GameMode;
+  engineTurn: EngineTurnView | null;
   timeControl: TimeControl;
   initialFen: string;
   players: Record<Color, GamePlayerView>;
@@ -104,7 +126,13 @@ function statusView(state: GameState): GameStatusView {
   return {
     phase: 'finished',
     result: {
-      outcome: winner === 'w' ? 'white' : winner === 'b' ? 'black' : 'draw',
+      outcome: isAborted(state.outcome)
+        ? 'aborted'
+        : winner === 'w'
+          ? 'white'
+          : winner === 'b'
+            ? 'black'
+            : 'draw',
       reason: termination,
     },
   };
@@ -112,6 +140,8 @@ function statusView(state: GameState): GameStatusView {
 
 function viewerView(state: GameState, color: Color): GameViewerView {
   const active = state.status === 'active';
+  // The engine service cannot answer draw offers, so engine games have none.
+  const draws = active && state.mode === 'friends';
   const { offerBy, declinedBy } = state.draw;
   return {
     role: 'player',
@@ -119,8 +149,8 @@ function viewerView(state: GameState, color: Color): GameViewerView {
     canMove: active && state.facts.turn === color,
     canResign: active,
     // After a declined offer, the same player may offer again once they have moved.
-    canOfferDraw: active && offerBy === null && declinedBy !== color,
-    canRespondToDraw: active && offerBy === opposite(color),
+    canOfferDraw: draws && offerBy === null && declinedBy !== color,
+    canRespondToDraw: draws && offerBy === opposite(color),
   };
 }
 
@@ -170,21 +200,28 @@ export function toSnapshotView(
   viewerId: string,
   now: number,
   isOnline: (userId: string) => boolean,
+  engineTurn: EngineTurnView | null = null,
 ): GameSnapshotView | null {
   const { state, moves } = runtime;
   const live = toLiveView(state, viewerId, now, moves.at(-1));
   if (!live) return null;
   const { move: _omit, ...rest } = live;
-  const player = (color: Color): GamePlayerView => ({
-    id: state.players[color].id,
-    username: state.players[color].username,
-    avatarUrl: null,
-    kind: 'human',
-    online: isOnline(state.players[color].id),
-  });
+  const player = (color: Color): GamePlayerView => {
+    const seat = state.players[color];
+    return {
+      id: seat.id,
+      username: seat.username,
+      avatarUrl: null,
+      kind: seat.kind,
+      // The engine is a service, not a connection; its availability shows through engineTurn.
+      online: seat.kind === 'engine' || isOnline(seat.id),
+    };
+  };
   return {
     ...rest,
     roomId: state.roomId,
+    mode: state.mode,
+    engineTurn: engineTurn && engineTurn.revision === state.revision ? engineTurn : null,
     timeControl: timeControlOf(state),
     initialFen: state.initialFen,
     players: { w: player('w'), b: player('b') },

@@ -22,9 +22,12 @@ const TERMINATION_TEXT: Record<Termination, string> = {
   'threefold-repetition': 'threefold repetition',
   'fifty-move-rule': 'fifty-move rule',
   agreement: 'agreement',
+  'engine-failure': 'abandoned; engine service failure',
 };
 
 export function resultToken(outcome: Outcome) {
+  // "*" is PGN's token for a game without a result.
+  if (outcome.termination === 'engine-failure') return '*';
   if (!outcome.winner) return '1/2-1/2';
   return outcome.winner === 'w' ? '1-0' : '0-1';
 }

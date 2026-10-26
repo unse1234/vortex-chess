@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import { createHash } from 'node:crypto';
 import type { ClockState } from '../clocks/game-clock';
 import {
   positionFacts,
@@ -12,13 +13,26 @@ import {
 } from '../rules/chess-rules';
 import { buildPgn } from '../rules/pgn';
 
-export type PlayerInfo = { id: string; username: string };
+/**
+ * A seat. Players are accounts; the engine is the engine service, identified
+ * by the name it reported at game creation. Engine ids are never account ids,
+ * so no account can act for the engine.
+ */
+export type PlayerInfo =
+  | { kind: 'human'; id: string; username: string }
+  | { kind: 'engine'; id: string; username: string };
+
+export type GameMode = 'friends' | 'engine';
+
+/** Stable identity of the engine seat in views; account ids are UUIDs, so it never collides. */
+export const ENGINE_PLAYER_ID = 'engine';
 
 /** An accepted, persisted move. Never changes once recorded. */
 export type MoveRecord = {
   ply: number;
   color: Color;
-  actorId: string;
+  /** The player who moved; null for the engine. */
+  actorId: string | null;
   requestId: string;
   uci: string;
   san: string;
@@ -48,6 +62,7 @@ export type DrawState = {
 export type GameState = {
   id: string;
   roomId: string | null;
+  mode: GameMode;
   players: Record<Color, PlayerInfo>;
   initialFen: string;
   initialMs: number;
@@ -84,9 +99,29 @@ export type GameRuntime = {
 export const commandKey = (actorId: string, requestId: string) =>
   `${actorId}:${requestId}`;
 
+/**
+ * Stable identity of one engine turn, derived from the game and the revision
+ * the search was scheduled at, formatted as a UUID (version 8) so it fits the
+ * move record's request id. Rescheduling or retrying the same turn yields the
+ * same id; the next turn (a new revision) gets a new one.
+ */
+export function engineTurnRequestId(gameId: string, revision: number) {
+  const hex = createHash('sha256').update(`engine-turn:${gameId}:${revision}`).digest('hex');
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/** The seat an account plays; never the engine's. */
 export function colorOf(state: GameState, userId: string): Color | null {
-  if (state.players.w.id === userId) return 'w';
-  if (state.players.b.id === userId) return 'b';
+  if (state.players.w.kind === 'human' && state.players.w.id === userId) return 'w';
+  if (state.players.b.kind === 'human' && state.players.b.id === userId) return 'b';
+  return null;
+}
+
+/** The engine's colour in an engine game. */
+export function engineColorOf(state: Pick<GameState, 'players'>): Color | null {
+  if (state.players.w.kind === 'engine') return 'w';
+  if (state.players.b.kind === 'engine') return 'b';
   return null;
 }
 

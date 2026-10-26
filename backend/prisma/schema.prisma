@@ -188,6 +188,17 @@ enum GameResult {
   WHITE_WINS
   BLACK_WINS
   DRAW
+  /// No result: the engine service failed (engine games only).
+  ABORTED
+}
+/// FRIENDS games start from a room; ENGINE games seat one player against the engine service.
+enum GameMode {
+  FRIENDS
+  ENGINE
+}
+enum ParticipantKind {
+  PLAYER
+  ENGINE
 }
 /// How a game ended. The automatic draw rules are documented in docs/Gameplay_Milestone.md.
 enum GameTermination {
@@ -200,6 +211,8 @@ enum GameTermination {
   THREEFOLD_REPETITION
   FIFTY_MOVE_RULE
   AGREEMENT
+  /// The engine service could not produce a move after bounded recovery attempts.
+  ENGINE_FAILURE
 }
 enum GameCommandKind {
   MOVE
@@ -214,6 +227,7 @@ model Game {
   /// One game per started room.
   roomId String? @unique @db.Uuid
   room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  mode GameMode @default(FRIENDS)
   status GameStatus @default(ACTIVE)
   /// Increases on every persisted change (moves, draw offers, results, clock resumption).
   revision Int @default(1)
@@ -243,15 +257,21 @@ model Game {
   commands GameCommand[]
   @@index([status])
   @@index([status, endedAt(sort: Desc), id(sort: Desc)])
+  @@index([mode, status])
 }
+/// A seat: a registered account, or the engine service (never a fake user).
 model GameParticipant {
   gameId String @db.Uuid
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   color GameColor
-  /// Completed games are history: an account with games cannot be deleted silently.
-  userId String @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  kind ParticipantKind @default(PLAYER)
+  /// Completed games are history: an account with games cannot be deleted silently. Null for the engine.
+  userId String? @db.Uuid
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+  /// Name the engine service reported when the game was created. Null for players.
+  engineName String? @db.VarChar(64)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+  moves GameMove[]
   @@id([gameId, color])
   @@unique([gameId, userId])
   @@index([userId, createdAt(sort: Desc)])
@@ -262,8 +282,11 @@ model GameMove {
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   ply Int
   color GameColor
-  actorId String @db.Uuid
-  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  participant GameParticipant @relation(fields: [gameId, color], references: [gameId, color], onDelete: Cascade)
+  /// The player who moved; null for engine moves.
+  actorId String? @db.Uuid
+  actor User? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  /// Player moves: the client's request id. Engine moves: derived from game and revision.
   requestId String @db.Uuid
   /// Coordinate notation, e.g. e2e4 or e7e8q (UCI).
   uci String @db.VarChar(5)

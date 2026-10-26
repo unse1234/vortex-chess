@@ -9,7 +9,13 @@ import type {
 } from '../../../generated/prisma/client';
 import type { Color, Outcome, Termination } from '../rules/chess-rules';
 import { STANDARD_START_FEN } from '../rules/chess-rules';
-import type { AppliedCommand, GameState, MoveRecord } from './game-state';
+import {
+  ENGINE_PLAYER_ID,
+  type AppliedCommand,
+  type GameState,
+  type MoveRecord,
+  type PlayerInfo,
+} from './game-state';
 
 const toDbColor = (color: Color): GameColor => (color === 'w' ? 'WHITE' : 'BLACK');
 const fromDbColor = (color: GameColor): Color => (color === 'WHITE' ? 'w' : 'b');
@@ -24,12 +30,14 @@ const TERMINATIONS: Record<Termination, GameTermination> = {
   'threefold-repetition': 'THREEFOLD_REPETITION',
   'fifty-move-rule': 'FIFTY_MOVE_RULE',
   agreement: 'AGREEMENT',
+  'engine-failure': 'ENGINE_FAILURE',
 };
 const fromDbTermination = Object.fromEntries(
   Object.entries(TERMINATIONS).map(([k, v]) => [v, k]),
 ) as Record<GameTermination, Termination>;
 
 function toDbResult(outcome: Outcome): GameResult {
+  if (outcome.termination === 'engine-failure') return 'ABORTED';
   if (!outcome.winner) return 'DRAW';
   return outcome.winner === 'w' ? 'WHITE_WINS' : 'BLACK_WINS';
 }
@@ -47,6 +55,15 @@ export type NewGame = {
   roomId: string;
   whiteId: string;
   blackId: string;
+  initialMs: number;
+  incrementMs: number;
+  startedAt: number;
+};
+
+export type NewEngineGame = {
+  playerId: string;
+  playerColor: Color;
+  engineName: string;
   initialMs: number;
   incrementMs: number;
   startedAt: number;
@@ -92,6 +109,54 @@ export class GameRepository {
     return game.id;
   }
 
+  /**
+   * Engine-game admission, inside the creation transaction. One account plays
+   * one engine game at a time; the server admits at most `maxActive` in total.
+   * An advisory lock makes the global count exact under concurrent creation.
+   */
+  async admitEngineGameInTx(tx: Prisma.TransactionClient, playerId: string, maxActive: number) {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('vortix:engine-game-admission'))`;
+    const own = await tx.game.findFirst({
+      where: { mode: 'ENGINE', status: 'ACTIVE', participants: { some: { userId: playerId } } },
+      select: { id: true },
+    });
+    if (own) return { admitted: false as const, reason: 'own_active' as const, gameId: own.id };
+    const active = await tx.game.count({ where: { mode: 'ENGINE', status: 'ACTIVE' } });
+    if (active >= maxActive) return { admitted: false as const, reason: 'capacity' as const };
+    return { admitted: true as const };
+  }
+
+  /** One player seat and one engine seat; the clock of White starts at `startedAt`. */
+  async createEngineGameInTx(tx: Prisma.TransactionClient, input: NewEngineGame) {
+    const game = await tx.game.create({
+      data: {
+        mode: 'ENGINE',
+        initialFen: STANDARD_START_FEN,
+        fen: STANDARD_START_FEN,
+        initialMs: input.initialMs,
+        incrementMs: input.incrementMs,
+        whiteRemainingMs: input.initialMs,
+        blackRemainingMs: input.initialMs,
+        turnStartedAt: new Date(input.startedAt),
+        startedAt: new Date(input.startedAt),
+      },
+      select: { id: true },
+    });
+    const playerColor = toDbColor(input.playerColor);
+    await tx.gameParticipant.createMany({
+      data: [
+        { gameId: game.id, color: playerColor, kind: 'PLAYER', userId: input.playerId },
+        {
+          gameId: game.id,
+          color: playerColor === 'WHITE' ? 'BLACK' : 'WHITE',
+          kind: 'ENGINE',
+          engineName: input.engineName,
+        },
+      ],
+    });
+    return game.id;
+  }
+
   /** Reads the game, its full move history and command ledger from one snapshot. */
   async load(gameId: string): Promise<LoadedGame | null> {
     return this.prisma.$transaction(
@@ -100,7 +165,12 @@ export class GameRepository {
         if (!game) return null;
         const participants = await tx.gameParticipant.findMany({
           where: { gameId },
-          select: { color: true, user: { select: { id: true, username: true } } },
+          select: {
+            color: true,
+            kind: true,
+            engineName: true,
+            user: { select: { id: true, username: true } },
+          },
         });
         const moves = await tx.gameMove.findMany({
           where: { gameId },
@@ -110,14 +180,21 @@ export class GameRepository {
           where: { gameId },
           select: { actorId: true, requestId: true, fingerprint: true, revision: true },
         });
-        const white = participants.find((p) => p.color === 'WHITE')?.user;
-        const black = participants.find((p) => p.color === 'BLACK')?.user;
+        const seat = (color: 'WHITE' | 'BLACK'): PlayerInfo | null => {
+          const p = participants.find((candidate) => candidate.color === color);
+          if (p?.kind === 'ENGINE' && p.engineName)
+            return { kind: 'engine', id: ENGINE_PLAYER_ID, username: p.engineName };
+          if (p?.kind === 'PLAYER' && p.user) return { kind: 'human', ...p.user };
+          return null;
+        };
+        const white = seat('WHITE');
+        const black = seat('BLACK');
         if (!white || !black) return null;
         const outcome: Outcome | null =
           game.result && game.termination
             ? {
                 winner:
-                  game.result === 'DRAW' ? null : game.result === 'WHITE_WINS' ? 'w' : 'b',
+                  game.result === 'WHITE_WINS' ? 'w' : game.result === 'BLACK_WINS' ? 'b' : null,
                 termination: fromDbTermination[game.termination],
               }
             : null;
@@ -125,6 +202,7 @@ export class GameRepository {
           state: {
             id: game.id,
             roomId: game.roomId,
+            mode: game.mode === 'ENGINE' ? 'engine' : 'friends',
             players: { w: white, b: black },
             initialFen: game.initialFen,
             initialMs: game.initialMs,
@@ -196,13 +274,14 @@ export class GameRepository {
   /**
    * Appends the move, records the command and advances the game in a single
    * statement: all three happen, or none do. Returns false when the game is
-   * no longer at `expectedRevision`.
+   * no longer at `expectedRevision`. Engine moves have no ledger entry: the
+   * revision guard and the (game, ply) key make each engine turn apply once.
    */
   async commitMove(input: {
     expectedRevision: number;
     next: GameState;
     move: MoveRecord;
-    command: CommandRecord;
+    command: CommandRecord | null;
   }) {
     const { next, move, command } = input;
     const g = this.gameColumns(next);
@@ -228,9 +307,9 @@ export class GameRepository {
         FROM g RETURNING 1
       ), c AS (
         INSERT INTO "GameCommand" ("gameId", "actorId", "requestId", "kind", "fingerprint", "revision")
-        SELECT g."id", ${command.actorId}::uuid, ${command.requestId}::uuid,
-          ${command.kind}::"GameCommandKind", ${command.fingerprint}::varchar, ${g.revision}::int
-        FROM g RETURNING 1
+        SELECT g."id", ${command?.actorId ?? null}::uuid, ${command?.requestId ?? null}::uuid,
+          ${command?.kind ?? null}::"GameCommandKind", ${command?.fingerprint ?? null}::varchar, ${g.revision}::int
+        FROM g WHERE ${command !== null}::boolean RETURNING 1
       )
       SELECT (SELECT count(*) FROM g)::int AS "updated"`;
     return rows[0]?.updated === 1;
@@ -280,6 +359,15 @@ export class GameRepository {
         "revision" = "revision" + 1, "updatedAt" = now()
       WHERE "status" = 'ACTIVE'
       RETURNING "id"`;
+    return rows.map((row) => row.id);
+  }
+
+  /** Active engine games, for repairing engine turns that were never scheduled. */
+  async activeEngineGameIds() {
+    const rows = await this.prisma.game.findMany({
+      where: { mode: 'ENGINE', status: 'ACTIVE' },
+      select: { id: true },
+    });
     return rows.map((row) => row.id);
   }
 }

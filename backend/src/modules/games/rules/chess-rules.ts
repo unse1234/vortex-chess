@@ -25,10 +25,14 @@ export type Termination =
   | 'insufficient-material'
   | 'threefold-repetition'
   | 'fifty-move-rule'
-  | 'agreement';
+  | 'agreement'
+  /** Engine games only: the engine service failed; no result is recorded. */
+  | 'engine-failure';
 
-/** winner null means a draw. */
+/** winner null means a draw, except for an aborted (engine-failure) game. */
 export type Outcome = { winner: Color | null; termination: Termination };
+
+export const isAborted = (outcome: Outcome) => outcome.termination === 'engine-failure';
 
 /** Legal destinations per origin square, e.g. { e2: ['e3', 'e4'] }. */
 export type LegalMoves = Record<string, string[]>;
@@ -227,6 +231,17 @@ export function historyOutcome(
   if (halfmoveClock(fenAfter) >= 100)
     return { winner: null, termination: 'fifty-move-rule' };
   return null;
+}
+
+/** Splits a UCI coordinate move (e2e4, e7e8q); null when it is not one. */
+export function parseUciMove(uci: string): MoveRequest | null {
+  const match = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/.exec(uci);
+  if (!match) return null;
+  return {
+    from: match[1],
+    to: match[2],
+    ...(match[3] ? { promotion: match[3] as PromotionPiece } : {}),
+  };
 }
 
 export function turnOf(fen: string): Color {
