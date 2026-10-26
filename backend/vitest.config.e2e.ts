@@ -9,5 +9,8 @@ export default defineConfig({
     hookTimeout: 30000,
     root: './',
     include: ['**/*.e2e-spec.ts'],
+    // Suites share one database. Every application instance resumes active
+    // games at startup (the restart policy), so instances must not overlap.
+    fileParallelism: false,
   },
 });
