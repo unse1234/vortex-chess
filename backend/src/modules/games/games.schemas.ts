@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createRoomSchema } from '../rooms/rooms.schemas';
 
 const uuid = z.uuid('Use a valid identifier.');
 const square = z.string().regex(/^[a-h][1-8]$/, 'Use a board square such as e4.');
@@ -45,3 +46,7 @@ export const analysisPreviewSchema = z.object({
   path: z.array(z.string().regex(/^[a-h][1-8][a-h][1-8][qrbn]?$/)).max(128),
 }).strict();
 export type AnalysisPreviewInput = z.infer<typeof analysisPreviewSchema>;
+
+/** Engine games reuse the room setup contract: a supported preset and a colour preference. */
+export const createEngineGameSchema = createRoomSchema;
+export type CreateEngineGameInput = z.infer<typeof createEngineGameSchema>;

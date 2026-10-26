@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Vortex Chess API",
-    "version": "1.3.0",
-    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; engine play/evaluation remain unavailable. See docs/History_Replay_Analysis_Milestone.md."
+    "version": "1.4.0",
+    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; See docs/History_Replay_Analysis_Milestone.md. Player-versus-engine games are implemented: the backend alone calls the engine service over HTTP/JSON; engine moves use the same authoritative pipeline (docs/Engine_Gameplay_Milestone.md). Engine evaluation, hints and automated review remain unavailable."
   },
   "servers": [
     {
@@ -2552,7 +2552,7 @@
             }
           }
         ],
-        "description": "Offers a draw; repeating an open offer changes nothing. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "description": "Offers a draw; repeating an open offer changes nothing. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication. Engine games: 409 draw_offers_unavailable.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2660,7 +2660,7 @@
             }
           }
         ],
-        "description": "Accepts or declines the opponent's pending offer. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "description": "Accepts or declines the opponent's pending offer. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication. Engine games: 409 draw_offers_unavailable.",
         "requestBody": {
           "required": true,
           "content": {
@@ -2975,6 +2975,164 @@
           },
           "503": {
             "description": "game_integrity_error; recorded prefix cannot be reconstructed"
+          }
+        }
+      }
+    },
+    "/engine-games/status": {
+      "get": {
+        "operationId": "getEngineStatus",
+        "tags": [
+          "Engine games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "description": "Whether an engine game can start now, from the engine service health (cached 5 s). Health is not a reservation or proof of search capacity.",
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EngineStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/engine-games": {
+      "post": {
+        "operationId": "createEngineGame",
+        "tags": [
+          "Engine games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "description": "Starts a game against the engine service with the room setup contract (a supported preset and a colour preference). Readiness (fresh health check) and the admission limit (ENGINE_MAX_ACTIVE_GAMES, one active engine game per account) are checked before the clock starts; the game is created in one transaction. If the engine plays White its opening search starts after the commit. Moves and resignation then use the ordinary game endpoints and the `game:<id>` channel; draw offers are refused with 409 draw_offers_unavailable.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "timeControl"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "timeControl": {
+                    "$ref": "#/components/schemas/TimeControlInput"
+                  },
+                  "colorPreference": {
+                    "$ref": "#/components/schemas/ColorPreference"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "game"
+                  ],
+                  "properties": {
+                    "game": {
+                      "$ref": "#/components/schemas/Game"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error (unsupported preset or colour)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "engine_game_active: the account already has an active engine game; the body adds `gameId`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "gameId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "retryable": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "engine_unavailable (retryable: the service is unreachable or not ready), engine_capacity_reached (retryable: admission limit), engine_not_configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -3869,8 +4027,10 @@
                         "enum": [
                           "white",
                           "black",
-                          "draw"
-                        ]
+                          "draw",
+                          "aborted"
+                        ],
+                        "description": "`aborted`: an engine game ended because the engine service failed after bounded recovery; no winner and no draw are recorded."
                       },
                       "reason": {
                         "type": "string",
@@ -3883,7 +4043,8 @@
                           "insufficient-material",
                           "threefold-repetition",
                           "fifty-move-rule",
-                          "agreement"
+                          "agreement",
+                          "engine-failure"
                         ]
                       }
                     }
@@ -4058,7 +4219,9 @@
           "players",
           "moves",
           "startedAt",
-          "pgn"
+          "pgn",
+          "mode",
+          "engineTurn"
         ],
         "properties": {
           "id": {
@@ -4124,8 +4287,10 @@
                         "enum": [
                           "white",
                           "black",
-                          "draw"
-                        ]
+                          "draw",
+                          "aborted"
+                        ],
+                        "description": "`aborted`: an engine game ended because the engine service failed after bounded recovery; no winner and no draw are recorded."
                       },
                       "reason": {
                         "type": "string",
@@ -4138,7 +4303,8 @@
                           "insufficient-material",
                           "threefold-repetition",
                           "fifty-move-rule",
-                          "agreement"
+                          "agreement",
+                          "engine-failure"
                         ]
                       }
                     }
@@ -4263,7 +4429,8 @@
               "canRespondToDraw": {
                 "type": "boolean"
               }
-            }
+            },
+            "description": "In engine games canOfferDraw and canRespondToDraw are always false."
           },
           "legalMoves": {
             "type": "object",
@@ -4300,56 +4467,13 @@
             ],
             "properties": {
               "w": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PlayerProfile"
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "kind",
-                      "online"
-                    ],
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "enum": [
-                          "human"
-                        ]
-                      },
-                      "online": {
-                        "type": "boolean"
-                      }
-                    }
-                  }
-                ]
+                "$ref": "#/components/schemas/GamePlayer"
               },
               "b": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/PlayerProfile"
-                  },
-                  {
-                    "type": "object",
-                    "required": [
-                      "kind",
-                      "online"
-                    ],
-                    "properties": {
-                      "kind": {
-                        "type": "string",
-                        "enum": [
-                          "human"
-                        ]
-                      },
-                      "online": {
-                        "type": "boolean"
-                      }
-                    }
-                  }
-                ]
+                "$ref": "#/components/schemas/GamePlayer"
               }
-            }
+            },
+            "description": "Seats by colour. `kind: \"engine\"` is the engine service: id is the literal \"engine\" (never an account id), username is the name it reported at game creation."
           },
           "moves": {
             "type": "array",
@@ -4365,6 +4489,21 @@
             "type": "string",
             "nullable": true,
             "description": "Final PGN once finished."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "friends",
+              "engine"
+            ]
+          },
+          "engineTurn": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EngineTurn"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -4552,7 +4691,8 @@
           "mode": {
             "type": "string",
             "enum": [
-              "friends"
+              "friends",
+              "engine"
             ]
           },
           "result": {
@@ -4560,7 +4700,8 @@
             "enum": [
               "win",
               "loss",
-              "draw"
+              "draw",
+              "aborted"
             ]
           },
           "timeControl": {
@@ -4570,7 +4711,7 @@
             "$ref": "#/components/schemas/PlayerProfile"
           },
           "opponent": {
-            "$ref": "#/components/schemas/PlayerProfile"
+            "$ref": "#/components/schemas/HistoryOpponent"
           }
         }
       },
@@ -4591,6 +4732,136 @@
           "nextCursor": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "EngineTurn": {
+        "type": "object",
+        "description": "The engine's search for the current turn. Not game state: it never changes the revision, and it describes the game only while `revision` equals the game's revision.",
+        "required": [
+          "revision",
+          "color",
+          "phase",
+          "attempt",
+          "since"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "description": "Game revision the search answers."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "thinking",
+              "retrying"
+            ],
+            "description": "queued: waiting for a search slot; thinking: request in flight; retrying: a transient service failure is being retried."
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "since": {
+            "type": "integer",
+            "description": "Server time (epoch ms) this phase began."
+          }
+        }
+      },
+      "GamePlayer": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "avatarUrl",
+          "kind",
+          "online"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Account id (UUID), or \"engine\" for the engine seat."
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "engine"
+            ]
+          },
+          "online": {
+            "type": "boolean",
+            "description": "Players: at least one connection. Always true for the engine."
+          }
+        }
+      },
+      "EngineStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "available",
+          "configured",
+          "engine"
+        ],
+        "description": "Engine readiness for display, cached for up to 5 s. It reserves nothing.",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "configured": {
+            "type": "boolean",
+            "description": "False when ENGINE_BASE_URL is unset."
+          },
+          "engine": {
+            "type": "string",
+            "nullable": true,
+            "description": "Name reported by the engine service."
+          }
+        }
+      },
+      "HistoryOpponent": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "avatarUrl",
+          "kind"
+        ],
+        "description": "The other seat. For engine games: id \"engine\" (never an account id), the name the engine service reported, kind \"engine\".",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Account id (UUID), or \"engine\"."
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "human",
+              "engine"
+            ]
           }
         }
       }
