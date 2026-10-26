@@ -6,9 +6,9 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 export const LOBBY_FRIEND_SEARCH_ID = "lobby-friend-search";
 
 type LobbyInteractions = {
-  /** Friend ids preselected in the open invite dialog; null while it's closed. */
-  inviteFriendIds: readonly string[] | null;
-  openInvite: (friendIds?: readonly string[]) => void;
+  /** Username/email prefilled in the open invite dialog; null while it's closed. */
+  inviteRecipient: string | null;
+  openInvite: (recipient?: string) => void;
   closeInvite: () => void;
   socialDrawerOpen: boolean;
   setSocialDrawerOpen: (open: boolean) => void;
@@ -27,18 +27,18 @@ export function useLobbyInteractions() {
  * different features (header, action cards, social sidebar, invite dialog).
  */
 export function LobbyInteractionsProvider({ children }: { children: ReactNode }) {
-  const [inviteFriendIds, setInviteFriendIds] = useState<readonly string[] | null>(null);
+  const [inviteRecipient, setInviteRecipient] = useState<string | null>(null);
   const [socialDrawerOpen, setSocialDrawerOpen] = useState(false);
 
   const value = useMemo<LobbyInteractions>(
     () => ({
-      inviteFriendIds,
-      openInvite: (friendIds = []) => setInviteFriendIds(friendIds),
-      closeInvite: () => setInviteFriendIds(null),
+      inviteRecipient,
+      openInvite: (recipient = "") => setInviteRecipient(recipient),
+      closeInvite: () => setInviteRecipient(null),
       socialDrawerOpen,
       setSocialDrawerOpen,
     }),
-    [inviteFriendIds, socialDrawerOpen],
+    [inviteRecipient, socialDrawerOpen],
   );
 
   return (

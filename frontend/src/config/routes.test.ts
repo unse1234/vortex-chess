@@ -22,7 +22,9 @@ describe("V1 navigation boundaries", () => {
       routes.signUp,
       routes.play,
       routes.terms,
-      routes.createRoom({ invite: ["player"] }),
+      routes.createRoom({ invite: "player" }),
+      routes.room("6f1c2d3e-0000-4000-8000-000000000000"),
+      routes.invitation("6f1c2d3e-0000-4000-8000-000000000001"),
       "/rooms/new?opponent=engine",
       routes.games,
       routes.game("vortex-demo"),
@@ -36,6 +38,8 @@ describe("V1 navigation boundaries", () => {
     expect(toSafeInternalPath("/rooms/new?invite=friend", routes.play)).toBe(
       "/rooms/new?invite=friend",
     );
+    // Invitation links survive sign-in and sign-up.
+    expect(toSafeInternalPath("/rooms/join/abc-123", routes.play)).toBe("/rooms/join/abc-123");
     for (const path of [
       "https://evil.invalid",
       "//evil.invalid",

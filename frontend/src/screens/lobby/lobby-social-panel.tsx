@@ -21,7 +21,7 @@ export function LobbySocialPanel() {
       >
         <SocialSidebar
           idPrefix="social-sidebar"
-          onInviteFriend={(friend) => openInvite([friend.id])}
+          onInviteFriend={(friend) => openInvite(friend.username)}
           searchInputId={LOBBY_FRIEND_SEARCH_ID}
           className="flex-1"
         />
@@ -38,7 +38,7 @@ export function LobbySocialPanel() {
           idPrefix="social-drawer"
           onInviteFriend={(friend) => {
             setSocialDrawerOpen(false);
-            openInvite([friend.id]);
+            openInvite(friend.username);
           }}
           autoFocusSearch
           className="h-full"

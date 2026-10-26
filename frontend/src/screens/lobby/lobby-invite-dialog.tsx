@@ -1,25 +1,25 @@
 "use client";
 
 import { routes } from "@/config/routes";
-import { InviteFriendsDialog } from "@/features/social/components/invite-friends-dialog";
+import { InvitePlayerDialog } from "@/features/invitations/components/invite-player-dialog";
 import { useNavigateOrPreview } from "@/hooks/use-navigate-or-preview";
 import { useLobbyInteractions } from "@/screens/lobby/lobby-interactions";
 
-/** Connects the social invite picker to room creation. */
+/** Connects the invitation picker to room creation. */
 export function LobbyInviteDialog() {
-  const { inviteFriendIds, closeInvite } = useLobbyInteractions();
+  const { inviteRecipient, closeInvite } = useLobbyInteractions();
   const { navigate } = useNavigateOrPreview();
 
   return (
-    <InviteFriendsDialog
-      open={inviteFriendIds !== null}
+    <InvitePlayerDialog
+      open={inviteRecipient !== null}
       onOpenChange={(open) => {
         if (!open) closeInvite();
       }}
-      initialSelectedIds={inviteFriendIds ?? []}
-      onConfirm={(friendIds) => {
+      initialRecipient={inviteRecipient ?? ""}
+      onContinue={(recipient) => {
         closeInvite();
-        navigate(routes.createRoom({ invite: friendIds }));
+        navigate(routes.createRoom({ invite: recipient }));
       }}
     />
   );

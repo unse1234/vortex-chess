@@ -1,7 +1,8 @@
-import type {
-  RealtimeClient,
-  RealtimeConnectionStatus,
-  RealtimeEvent,
+import {
+  RealtimeRequestError,
+  type RealtimeClient,
+  type RealtimeConnectionStatus,
+  type RealtimeEvent,
 } from "@/lib/realtime/realtime-contract";
 
 type Handler = (event: RealtimeEvent) => void;
@@ -35,6 +36,20 @@ class MockRealtimeClient implements RealtimeClient {
     return () => {
       handlers.delete(handler);
     };
+  };
+
+  private requestHandlers = new Map<string, (payload: unknown) => unknown>();
+
+  /** Scenarios answer commands by type, like the server's acknowledgement. */
+  handleRequests(type: string, handler: (payload: unknown) => unknown) {
+    this.requestHandlers.set(type, handler);
+  }
+
+  request = async (type: string, payload: unknown) => {
+    if (this.status !== "connected") throw new RealtimeRequestError("not-connected");
+    const handler = this.requestHandlers.get(type);
+    if (!handler) return { ok: false, error: { code: "not_found", message: "Unknown command.", retryable: false }, game: null };
+    return handler(payload);
   };
 
   connect() {

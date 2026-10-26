@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { RoutePlaceholder } from "@/screens/placeholder/route-placeholder";
+import { CreateRoomScreen } from "@/screens/rooms/create-room-screen";
 
 export const metadata: Metadata = {
   title: "Create a room",
 };
 
-export default function Page() {
-  return <RoutePlaceholder title="Create a room" description="Room setup is not designed yet. This route is open so links resolve." />;
+export default async function Page({ searchParams }: PageProps<"/rooms/new">) {
+  // `invite` only prefills the recipient; the backend authorizes everything.
+  const { invite } = await searchParams;
+  return <CreateRoomScreen initialRecipient={typeof invite === "string" ? invite.slice(0, 254) : ""} />;
 }

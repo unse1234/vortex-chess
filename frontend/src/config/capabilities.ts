@@ -13,6 +13,7 @@ export const features = {
   invitations: { available: true, label: "Private invitations" },
   enginePlay: { available: true, label: "Play vs Engine" },
   roomSetup: { available: true, label: "Room setup" },
+  matchStart: { available: true, label: "Match start" },
   history: { available: true, label: "Game history and replay" },
   matchmaking: { available: false, label: "Find Players" },
   team: { available: false, label: "2v2" },

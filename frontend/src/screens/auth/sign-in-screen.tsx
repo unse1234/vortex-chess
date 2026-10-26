@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { ArtworkBand } from "@/components/layout/artwork-band";
 import { MedalIcon } from "@/components/ui/icons";
 import { appConfig } from "@/config/app";
 import { routes } from "@/config/routes";
+import { AuthSwitchLink } from "@/screens/auth/auth-switch-link";
 import { AuthCard } from "@/features/auth/components/auth-card";
 import { AuthDivider } from "@/features/auth/components/auth-divider";
 import { AuthEmblem } from "@/features/auth/components/auth-emblem";
@@ -67,12 +67,12 @@ export function SignInScreen() {
 
           <p className="mt-[25px] flex flex-wrap items-baseline justify-center gap-x-[8px] text-center font-body text-[15px] leading-[22px] text-auth-label">
             New Operator in theater?
-            <Link
+            <AuthSwitchLink
               href={routes.signUp}
               className="font-mono text-[16px] font-bold tracking-[0.03em] text-auth-primary hover:underline"
             >
               INITIATE DOSSIER {"//"} REGISTER
-            </Link>
+            </AuthSwitchLink>
           </p>
         </AuthCard>
 

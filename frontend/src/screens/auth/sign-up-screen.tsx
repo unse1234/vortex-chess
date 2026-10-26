@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { ArtworkBand } from "@/components/layout/artwork-band";
 import { ArrowForwardIcon, ShieldHouseIcon } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
+import { AuthSwitchLink } from "@/screens/auth/auth-switch-link";
 import { AuthCard } from "@/features/auth/components/auth-card";
 import { AuthDivider } from "@/features/auth/components/auth-divider";
 import { AuthEmblem } from "@/features/auth/components/auth-emblem";
@@ -69,13 +69,13 @@ export function SignUpScreen() {
 
           <p className="mt-[24px] flex flex-wrap items-baseline justify-center gap-x-[12px] text-center font-body text-[15px] leading-[22px] text-[#c6d6ca]">
             Already an authenticated operator?
-            <Link
+            <AuthSwitchLink
               href={routes.signIn}
               className="inline-flex items-center gap-[2px] font-mono text-[14px] font-bold tracking-[0.025em] text-auth-primary hover:underline"
             >
               RETURN TO OPERATOR LOGIN
               <ArrowForwardIcon aria-hidden className="text-[15px]" />
-            </Link>
+            </AuthSwitchLink>
           </p>
 
           <div className="mt-[24px] flex flex-wrap justify-between gap-x-4 gap-y-1 font-display text-[13px] leading-4 tracking-[0.075em] text-auth-dim">

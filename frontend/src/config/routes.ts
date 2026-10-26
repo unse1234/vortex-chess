@@ -22,8 +22,12 @@ export const routes = {
   profile: "/profile",
   telemetry: "/telemetry",
   leaderboard: "/leaderboard",
-  createRoom: (options: { invite?: readonly string[] } = {}) =>
-    withQuery("/rooms/new", { invite: options.invite?.join(",") }),
+  /** `invite` only prefills the recipient field; it grants nothing. */
+  createRoom: (options: { invite?: string } = {}) =>
+    withQuery("/rooms/new", { invite: options.invite }),
+  room: (roomId: string) => `/rooms/${encodeURIComponent(roomId)}`,
+  /** Invitation landing page; only the invited account can respond. */
+  invitation: (invitationId: string) => `/rooms/join/${encodeURIComponent(invitationId)}`,
   matchmaking: (options: { mode?: MatchmakingMode } = {}) =>
     withQuery("/matchmaking", { mode: options.mode }),
   games: "/games",
@@ -46,6 +50,8 @@ const availableRoutePatterns: readonly RegExp[] = [
   /^\/telemetry$/,
   /^\/leaderboard$/,
   /^\/rooms\/new$/,
+  /^\/rooms\/join\/[^/]+$/,
+  /^\/rooms\/[^/]+$/,
   /^\/matchmaking$/,
   /^\/games$/,
   /^\/games\/[^/]+$/,

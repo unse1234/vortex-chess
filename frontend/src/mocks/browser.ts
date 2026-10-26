@@ -2,6 +2,7 @@ import { setupWorker } from "msw/browser";
 import { authHandlers } from "@/mocks/handlers/auth.handlers";
 import { gameRoomHandlers } from "@/mocks/handlers/game-room.handlers";
 import { gamesHandlers } from "@/mocks/handlers/games.handlers";
+import { notificationsHandlers } from "@/mocks/handlers/notifications.handlers";
 import { sessionHandlers } from "@/mocks/handlers/session.handlers";
 import { socialHandlers } from "@/mocks/handlers/social.handlers";
 import { systemHandlers } from "@/mocks/handlers/system.handlers";
@@ -11,6 +12,7 @@ const worker = setupWorker(
   ...sessionHandlers,
   ...gamesHandlers,
   ...gameRoomHandlers,
+  ...notificationsHandlers,
   ...socialHandlers,
   ...systemHandlers,
 );

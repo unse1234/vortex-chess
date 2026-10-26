@@ -9,7 +9,7 @@ import { env } from "@/config/env";
 import { routes } from "@/config/routes";
 import { AccountSummary } from "@/features/auth/components/account-summary";
 import { SignOutDialog } from "@/features/auth/components/sign-out-dialog";
-import { NotificationsPopover } from "@/features/lobby/components/notifications-popover";
+import { NotificationsPopover } from "@/features/notifications/components/notifications-popover";
 import { useApiLatency } from "@/hooks/use-api-latency";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNavigateOrPreview } from "@/hooks/use-navigate-or-preview";
