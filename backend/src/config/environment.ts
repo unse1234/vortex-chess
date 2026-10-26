@@ -85,6 +85,30 @@ const schema = z
       .max(3600)
       .default(30),
     MAIL_LEASE_SECONDS: z.coerce.number().int().min(10).max(3600).default(120),
+    /** Engine service (FastAPI over HTTP/JSON). Unset disables engine games. */
+    ENGINE_BASE_URL: z.string().url().optional(),
+    /** Search time requested per engine move; shortened when the engine's clock requires it. */
+    ENGINE_SEARCH_MOVETIME_MS: z.coerce.number().int().min(10).max(30000).default(200),
+    /** Clock time kept back for HTTP travel and engine-service queueing. */
+    ENGINE_TRANSPORT_RESERVE_MS: z.coerce.number().int().min(0).max(30000).default(1500),
+    /** Clock time kept back for validating and committing the returned move. */
+    ENGINE_COMMIT_RESERVE_MS: z.coerce.number().int().min(0).max(5000).default(150),
+    /** Upper bound for one analyze request, whatever the clock allows. */
+    ENGINE_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).default(10000),
+    ENGINE_HEALTH_TIMEOUT_MS: z.coerce.number().int().min(100).max(30000).default(3000),
+    /** Searches in flight against the engine service at once, across all games. */
+    ENGINE_MAX_CONCURRENT_SEARCHES: z.coerce.number().int().min(1).max(64).default(1),
+    /** Searches waiting for a slot; more are refused as busy. */
+    ENGINE_MAX_QUEUED_SEARCHES: z.coerce.number().int().min(0).max(1000).default(16),
+    /** Admission limit: active engine games across the server. */
+    ENGINE_MAX_ACTIVE_GAMES: z.coerce.number().int().min(1).max(1000).default(4),
+    /** Attempts per engine move, counting the first; only transient failures are retried. */
+    ENGINE_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
+    ENGINE_RETRY_BASE_MS: z.coerce.number().int().min(0).max(10000).default(300),
+    /** After an aborted or timed-out request, the slot stays reserved this long: the remote search may still be running. */
+    ENGINE_ABORT_QUARANTINE_MS: z.coerce.number().int().min(0).max(60000).default(2000),
+    /** Periodic repair of missed engine turns; 0 disables (commits and startup still schedule). */
+    ENGINE_RECOVERY_INTERVAL_SECONDS: z.coerce.number().int().min(0).max(3600).default(5),
   })
   .superRefine((env, ctx) => {
     if (env.MAIL_TRANSPORT === 'smtp') {
@@ -139,6 +163,32 @@ const schema = z
         });
       }
     }
+    if (env.ENGINE_BASE_URL) {
+      const parsed = new URL(env.ENGINE_BASE_URL);
+      if (
+        !['http:', 'https:'].includes(parsed.protocol) ||
+        parsed.search ||
+        parsed.hash ||
+        parsed.username ||
+        (env.NODE_ENV === 'production' && parsed.protocol !== 'https:')
+      )
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ENGINE_BASE_URL'],
+          message:
+            'Use an http(s) base URL without credentials, query or fragment; HTTPS is required in production',
+        });
+    }
+    if (
+      env.ENGINE_REQUEST_TIMEOUT_MS <
+      env.ENGINE_SEARCH_MOVETIME_MS + env.ENGINE_TRANSPORT_RESERVE_MS
+    )
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ENGINE_REQUEST_TIMEOUT_MS'],
+        message:
+          'Must cover ENGINE_SEARCH_MOVETIME_MS plus ENGINE_TRANSPORT_RESERVE_MS',
+      });
     if (
       (env.COOKIE_SAME_SITE === 'none' || env.NODE_ENV === 'production') &&
       !env.COOKIE_SECURE
