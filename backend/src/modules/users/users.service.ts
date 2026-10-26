@@ -28,3 +28,12 @@ export class UsersService {
     };
   }
 }
+/** Identity visible to other players. Never includes the account email. */
+export type PlayerProfile = {
+  id: string;
+  username: string;
+  avatarUrl: null;
+};
+export function playerProfile(user: Pick<User, 'id' | 'username'>): PlayerProfile {
+  return { id: user.id, username: user.username, avatarUrl: null };
+}

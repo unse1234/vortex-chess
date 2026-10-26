@@ -21,6 +21,16 @@ describe('Environment validation', () => {
     { NODE_ENV: 'production', COOKIE_SECURE: 'true' },
     { DATABASE_URL: 'file:./test.db' },
     { TRUST_PROXY_HOPS: '-1' },
+    { MAIL_TRANSPORT: 'smtp' },
+    { MAIL_TRANSPORT: 'smtp', SMTP_HOST: 'smtp.example.com' },
+    {
+      MAIL_TRANSPORT: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      MAIL_FROM: 'Vortex Chess <noreply@example.com>',
+      SMTP_USER: 'only-user',
+    },
+    { INVITATION_TTL_MINUTES: '0' },
+    { APP_PUBLIC_URL: 'ftp://example.com' },
   ])('rejects unsafe/missing configuration %#', (override) => {
     expect(() => validateEnvironment({ ...base, ...override })).toThrow(
       'Invalid environment',

@@ -9,6 +9,7 @@ import type { Environment } from '../../config/environment';
 import { ApiException } from '../../common/errors/api-exception';
 import { UsersService, publicUser } from '../users/users.service';
 import { PasswordService } from './password.service';
+import { SessionEventsService } from './session-events.service';
 import type { LoginInput, RegisterInput } from './auth.schemas';
 export const digestToken = (token: string) =>
   createHash('sha256').update(token).digest('hex');
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService<Environment, true>,
+    private readonly sessionEvents: SessionEventsService,
   ) {}
 
   async register(input: RegisterInput) {
@@ -161,7 +163,11 @@ export class AuthService {
       });
       return session;
     });
-    if (!result) throw unauthorized();
+    if (!result) {
+      // Replay or expiry: close long-lived connections of this family too.
+      this.sessionEvents.revoked(found.sessionId);
+      throw unauthorized();
+    }
     return this.issue(result.user, result, nextToken);
   }
 
@@ -171,11 +177,13 @@ export class AuthService {
       where: { tokenHash: digestToken(rawToken) },
       select: { sessionId: true },
     });
-    if (token)
+    if (token) {
       await this.prisma.authSession.updateMany({
         where: { id: token.sessionId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      this.sessionEvents.revoked(token.sessionId);
+    }
   }
 
   private async issue(user: User, session: AuthSession, refreshToken: string) {
@@ -200,6 +208,11 @@ export class AuthService {
   }
 
   async authenticate(accessToken: string) {
+    return (await this.authenticateSession(accessToken)).user;
+  }
+
+  /** Verifies the JWT and that its database session is still active. */
+  async authenticateSession(accessToken: string) {
     let claims: { sub: string; sid: string };
     try {
       claims = await this.jwt.verifyAsync(accessToken, {
@@ -223,6 +236,20 @@ export class AuthService {
       include: { user: true },
     });
     if (!session) throw unauthorized();
-    return publicUser(session.user);
+    return { user: publicUser(session.user), sessionId: session.id };
+  }
+
+  /** The subset of the given session ids that are still usable. */
+  async activeSessionIds(sessionIds: string[]) {
+    if (sessionIds.length === 0) return new Set<string>();
+    const rows = await this.prisma.authSession.findMany({
+      where: {
+        id: { in: sessionIds },
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    });
+    return new Set(rows.map((row) => row.id));
   }
 }

@@ -15,6 +15,16 @@ model User {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   sessions AuthSession[]
+  hostedRooms Room[] @relation("RoomHost")
+  joinedRooms Room[] @relation("RoomChallenger")
+  sentInvitations Invitation[] @relation("InvitationSender")
+  receivedInvitations Invitation[] @relation("InvitationRecipient")
+  notifications Notification[] @relation("NotificationRecipient")
+  actedNotifications Notification[] @relation("NotificationActor")
+  emailJobs EmailJob[]
+  gameSeats GameParticipant[]
+  gameMoves GameMove[]
+  gameCommands GameCommand[]
 }
 model AuthSession {
   id String @id @default(uuid()) @db.Uuid
@@ -37,4 +47,248 @@ model RefreshToken {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   usedAt DateTime? @db.Timestamptz(3)
   @@index([sessionId])
+}
+
+enum RoomStatus {
+  WAITING
+  READY
+  /// A game was created from the room; seats and settings are final.
+  STARTED
+  CANCELLED
+  EXPIRED
+}
+enum ColorPreference {
+  WHITE
+  BLACK
+  RANDOM
+}
+/// Private two-seat room. Seats live on the row so one row lock serializes seat claims.
+model Room {
+  id String @id @default(uuid()) @db.Uuid
+  hostId String @db.Uuid
+  host User @relation("RoomHost", fields: [hostId], references: [id], onDelete: Cascade)
+  challengerId String? @db.Uuid
+  challenger User? @relation("RoomChallenger", fields: [challengerId], references: [id], onDelete: SetNull)
+  status RoomStatus @default(WAITING)
+  /// Increases on every persisted change; clients send it back with mutations.
+  revision Int @default(1)
+  initialMs Int
+  incrementMs Int
+  colorPreference ColorPreference @default(RANDOM)
+  hostReady Boolean @default(false)
+  challengerReady Boolean @default(false)
+  expiresAt DateTime @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  invitations Invitation[]
+  notifications Notification[]
+  game Game?
+  @@index([hostId, status])
+  @@index([challengerId, status])
+  @@index([status, expiresAt])
+}
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+enum InvitationAddress {
+  USERNAME
+  EMAIL
+}
+model Invitation {
+  id String @id @default(uuid()) @db.Uuid
+  roomId String @db.Uuid
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId String @db.Uuid
+  sender User @relation("InvitationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String @db.Uuid
+  recipient User @relation("InvitationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  /// How the sender addressed the recipient; username invitations never reveal the recipient's email.
+  addressedBy InvitationAddress
+  status InvitationStatus @default(PENDING)
+  expiresAt DateTime @db.Timestamptz(3)
+  respondedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  notifications Notification[]
+  emailJobs EmailJob[]
+  @@index([recipientId, status, createdAt])
+  @@index([senderId, createdAt])
+  @@index([roomId, status])
+  @@index([status, expiresAt])
+}
+enum NotificationType {
+  INVITATION_RECEIVED
+  INVITATION_ACCEPTED
+  INVITATION_DECLINED
+}
+/// Durable inbox entry, separate from invitation state; reading it never answers the invitation.
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+  recipientId String @db.Uuid
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId String? @db.Uuid
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type NotificationType
+  invitationId String? @db.Uuid
+  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  roomId String? @db.Uuid
+  room Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  /// One entry per logical event, so retried writes cannot duplicate inbox items.
+  dedupeKey String @unique @db.VarChar(120)
+  readAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
+}
+enum EmailJobStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  SKIPPED
+}
+/// Transactional outbox for asynchronous email. Provider calls never run inside domain transactions.
+model EmailJob {
+  id String @id @default(uuid()) @db.Uuid
+  kind String @db.VarChar(40)
+  dedupeKey String @unique @db.VarChar(120)
+  recipientId String @db.Uuid
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  invitationId String? @db.Uuid
+  invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  status EmailJobStatus @default(PENDING)
+  attempts Int @default(0)
+  maxAttempts Int
+  availableAt DateTime @default(now()) @db.Timestamptz(3)
+  lockToken String? @db.Uuid
+  lockedAt DateTime? @db.Timestamptz(3)
+  lastError String? @db.VarChar(500)
+  providerMessageId String? @db.VarChar(250)
+  providerResponse String? @db.VarChar(500)
+  skipReason String? @db.VarChar(60)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@index([status, availableAt])
+}
+
+enum GameStatus {
+  ACTIVE
+  FINISHED
+}
+enum GameColor {
+  WHITE
+  BLACK
+}
+enum GameResult {
+  WHITE_WINS
+  BLACK_WINS
+  DRAW
+}
+/// How a game ended. The automatic draw rules are documented in docs/Gameplay_Milestone.md.
+enum GameTermination {
+  CHECKMATE
+  RESIGNATION
+  TIMEOUT
+  TIMEOUT_VS_INSUFFICIENT_MATERIAL
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  AGREEMENT
+}
+enum GameCommandKind {
+  MOVE
+  RESIGN
+  OFFER_DRAW
+  ACCEPT_DRAW
+  DECLINE_DRAW
+}
+/// Authoritative game. Settings are copied from the room at start and never change.
+model Game {
+  id String @id @default(uuid()) @db.Uuid
+  /// One game per started room.
+  roomId String? @unique @db.Uuid
+  room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  status GameStatus @default(ACTIVE)
+  /// Increases on every persisted change (moves, draw offers, results, clock resumption).
+  revision Int @default(1)
+  /// Number of accepted half-moves.
+  ply Int @default(0)
+  initialFen String @db.VarChar(100)
+  fen String @db.VarChar(100)
+  initialMs Int
+  incrementMs Int
+  /// Remaining time of each side when `turnStartedAt` was recorded.
+  whiteRemainingMs Int
+  blackRemainingMs Int
+  /// Server time the side to move started thinking; null once finished.
+  turnStartedAt DateTime? @db.Timestamptz(3)
+  drawOfferBy GameColor?
+  /// The player whose draw offer was declined, until the next move.
+  drawDeclinedBy GameColor?
+  result GameResult?
+  termination GameTermination?
+  pgn String?
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  participants GameParticipant[]
+  moves GameMove[]
+  commands GameCommand[]
+  @@index([status])
+}
+model GameParticipant {
+  gameId String @db.Uuid
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  color GameColor
+  /// Completed games are history: an account with games cannot be deleted silently.
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([gameId, color])
+  @@unique([gameId, userId])
+  @@index([userId, createdAt(sort: Desc)])
+}
+/// Immutable accepted move with its resulting position and clock snapshot.
+model GameMove {
+  gameId String @db.Uuid
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ply Int
+  color GameColor
+  actorId String @db.Uuid
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  requestId String @db.Uuid
+  /// Coordinate notation, e.g. e2e4 or e7e8q (UCI).
+  uci String @db.VarChar(5)
+  san String @db.VarChar(12)
+  /// Captured piece letter (p, n, b, r, q), if any.
+  captured String? @db.Char(1)
+  fenAfter String @db.VarChar(100)
+  playedAt DateTime @db.Timestamptz(3)
+  /// Time the mover used, before increment.
+  elapsedMs Int
+  whiteRemainingMs Int
+  blackRemainingMs Int
+  @@id([gameId, ply])
+}
+/// Ledger of applied commands; retries with the same request id are answered from it.
+model GameCommand {
+  gameId String @db.Uuid
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  actorId String @db.Uuid
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  requestId String @db.Uuid
+  kind GameCommandKind
+  /// Canonical command content; a retry must match it exactly.
+  fingerprint String @db.VarChar(80)
+  /// Game revision after the command was applied.
+  revision Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([gameId, actorId, requestId])
 }

@@ -6,6 +6,7 @@ import { CsrfGuard } from '../../common/guards/csrf.guard';
 import { AuthService } from './auth.service';
 import { AuthCookieService } from './auth-cookie.service';
 import { PasswordService } from './password.service';
+import { SessionEventsService } from './session-events.service';
 import { AuthController } from './auth.controller';
 import { SessionController } from './session.controller';
 @Module({
@@ -15,9 +16,10 @@ import { SessionController } from './session.controller';
     AuthService,
     AuthCookieService,
     PasswordService,
+    SessionEventsService,
     AccessTokenGuard,
     CsrfGuard,
   ],
-  exports: [AuthService, AccessTokenGuard],
+  exports: [AuthService, AccessTokenGuard, SessionEventsService],
 })
 export class AuthModule {}

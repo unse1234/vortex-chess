@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Vortix Chess Authentication API",
-    "version": "1.0.0",
-    "description": "Foundation/authentication milestone only. Access JWT in frontend memory; rotating HttpOnly refresh cookie. All responses use Cache-Control: no-store. Default access lifetime 300 seconds; absolute session expiry 24 hours or 30 days with remember=true. Email ownership is not verified."
+    "title": "Vortex Chess API",
+    "version": "1.2.0",
+    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address."
   },
   "servers": [
     {
@@ -86,8 +86,8 @@
               }
             }
           },
-          "429": {
-            "description": "Rate limit exceeded",
+          "409": {
+            "description": "Email or case-insensitive username taken",
             "content": {
               "application/json": {
                 "schema": {
@@ -96,8 +96,8 @@
               }
             }
           },
-          "409": {
-            "description": "Email or case-insensitive username taken",
+          "429": {
+            "description": "Rate limit exceeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -578,6 +578,2181 @@
           }
         }
       }
+    },
+    "/rooms/options": {
+      "get": {
+        "operationId": "roomOptions",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Supported presets and lifetimes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomOptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms": {
+      "post": {
+        "operationId": "createRoom",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "description": "Creates a private room with the caller as host. At most MAX_ACTIVE_ROOMS_PER_USER open rooms per host.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "timeControl"
+                ],
+                "properties": {
+                  "timeControl": {
+                    "$ref": "#/components/schemas/TimeControlInput"
+                  },
+                  "colorPreference": {
+                    "$ref": "#/components/schemas/ColorPreference"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: too_many_active_rooms",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}": {
+      "get": {
+        "operationId": "getRoom",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Seat holders only; others get 404. Records a due expiry before answering.",
+        "responses": {
+          "200": {
+            "description": "Room",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found (also for non-participants)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/settings": {
+      "patch": {
+        "operationId": "updateRoomSettings",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Host only. A material change resets both players readiness and increments the revision; an unchanged request is a no-op.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedRevision"
+                ],
+                "properties": {
+                  "expectedRevision": {
+                    "type": "integer"
+                  },
+                  "timeControl": {
+                    "$ref": "#/components/schemas/TimeControlInput"
+                  },
+                  "colorPreference": {
+                    "$ref": "#/components/schemas/ColorPreference"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated room",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: room_revision_conflict, room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/ready": {
+      "post": {
+        "operationId": "setRoomReady",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Host or challenger confirms the revision they saw. Status becomes ready when both seats are ready.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedRevision",
+                  "ready"
+                ],
+                "properties": {
+                  "expectedRevision": {
+                    "type": "integer"
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated room",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: room_revision_conflict, room_not_full, room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/cancel": {
+      "post": {
+        "operationId": "cancelRoom",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Host only; idempotent. Cancels pending invitations in the same transaction.",
+        "responses": {
+          "200": {
+            "description": "Cancelled room",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/leave": {
+      "post": {
+        "operationId": "leaveRoom",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Challenger gives up the seat; readiness resets.",
+        "responses": {
+          "204": {
+            "description": "Left"
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_challenger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/invitations": {
+      "post": {
+        "operationId": "createInvitation",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Host invites a registered account by unique username (case-insensitive) or email (trimmed, lowercased). The backend binds the invitation to the account id. Online recipients get realtime events; offline recipients also get a durable email job. Throttled to 20/min per IP because account_not_found reveals whether an account exists.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recipient"
+                ],
+                "properties": {
+                  "recipient": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "description": "Username or email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_error or self_invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found, or account_not_found (fieldErrors.recipient)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: invitation_pending, room_full, room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listRoomInvitations",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest first, up to 50",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Invitation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations": {
+      "get": {
+        "operationId": "listMyInvitations",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "received",
+                "sent"
+              ],
+              "default": "received"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "all"
+              ],
+              "default": "pending"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{invitationId}": {
+      "get": {
+        "operationId": "getInvitation",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Sender or recipient only. Anyone else holding the link gets 403 invitation_wrong_account without details.",
+        "responses": {
+          "200": {
+            "description": "Invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "invitation_wrong_account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "invitation_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{invitationId}/accept": {
+      "post": {
+        "operationId": "acceptInvitation",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Recipient only. Atomically validates recipient, status, expiry, room availability and the challenger seat under the room row lock. Repeating an accepted invitation returns it unchanged.",
+        "responses": {
+          "200": {
+            "description": "Current invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "invitation_wrong_account or not_invitation_recipient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "invitation_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: invitation_declined, invitation_cancelled, invitation_expired, room_full, room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{invitationId}/decline": {
+      "post": {
+        "operationId": "declineInvitation",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Recipient only; idempotent for declined invitations. Notifies the sender.",
+        "responses": {
+          "200": {
+            "description": "Current invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "invitation_wrong_account or not_invitation_recipient",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "invitation_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: invitation_accepted, invitation_cancelled, invitation_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invitations/{invitationId}/cancel": {
+      "post": {
+        "operationId": "cancelInvitation",
+        "tags": [
+          "Invitations"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Sender only; idempotent for cancelled invitations.",
+        "responses": {
+          "200": {
+            "description": "Current invitation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "invitation_wrong_account or not_invitation_sender",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "invitation_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: invitation_accepted, invitation_declined, invitation_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "operationId": "listNotifications",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest first (keyset pagination)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_error or invalid_cursor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "operationId": "unreadNotifications",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "unreadCount"
+                  ],
+                  "properties": {
+                    "unreadCount": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{notificationId}/read": {
+      "post": {
+        "operationId": "markNotificationRead",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "notificationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Owner only; idempotent. Never answers the referenced invitation.",
+        "responses": {
+          "200": {
+            "description": "Marked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "notification",
+                    "unreadCount"
+                  ],
+                  "properties": {
+                    "notification": {
+                      "$ref": "#/components/schemas/Notification"
+                    },
+                    "unreadCount": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "notification_not_found (also for other accounts)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "operationId": "markAllNotificationsRead",
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Marked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "unreadCount"
+                  ],
+                  "properties": {
+                    "unreadCount": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rooms/{roomId}/start": {
+      "post": {
+        "operationId": "startRoom",
+        "tags": [
+          "Rooms"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Host only. Under the room lock, checks the confirmed revision, both seats and both readiness flags, then atomically creates the room's one game (colours from the preference, immutable time control, standard start, White's clock running), closes pending invitations and marks the room started. Repeating a start returns the started room with the same gameId.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "expectedRevision"
+                ],
+                "properties": {
+                  "expectedRevision": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Started room; `gameId` is set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoomResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_room_host",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "room_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict: room_not_ready, room_revision_conflict, room_cancelled, room_expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{gameId}": {
+      "get": {
+        "operationId": "getGame",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "game"
+                  ],
+                  "properties": {
+                    "game": {
+                      "$ref": "#/components/schemas/Game"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "game_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{gameId}/moves": {
+      "post": {
+        "operationId": "submitMove",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Plays a move for the authenticated player. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestId",
+                  "expectedRevision",
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "requestId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Idempotency key, scoped to game and actor."
+                  },
+                  "expectedRevision": {
+                    "type": "integer"
+                  },
+                  "from": {
+                    "type": "string",
+                    "pattern": "^[a-h][1-8]$"
+                  },
+                  "to": {
+                    "type": "string",
+                    "pattern": "^[a-h][1-8]$"
+                  },
+                  "promotion": {
+                    "type": "string",
+                    "enum": [
+                      "q",
+                      "r",
+                      "b",
+                      "n"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, or answered from the ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "game_not_found (also for non-participants)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "game_finished, stale_revision, not_your_turn, request_id_reused, draw_offer_pending, draw_offer_cooldown, no_draw_offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "illegal_move, promotion_required, promotion_not_allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Retryable: command_not_saved, game_state_conflict, game_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{gameId}/resign": {
+      "post": {
+        "operationId": "resign",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Resigns. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "requestId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Idempotency key, scoped to game and actor."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, or answered from the ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "game_not_found (also for non-participants)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "game_finished, stale_revision, not_your_turn, request_id_reused, draw_offer_pending, draw_offer_cooldown, no_draw_offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Retryable: command_not_saved, game_state_conflict, game_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{gameId}/draw-offer": {
+      "post": {
+        "operationId": "offerDraw",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Offers a draw; repeating an open offer changes nothing. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "requestId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Idempotency key, scoped to game and actor."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, or answered from the ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "game_not_found (also for non-participants)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "game_finished, stale_revision, not_your_turn, request_id_reused, draw_offer_pending, draw_offer_cooldown, no_draw_offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Retryable: command_not_saved, game_state_conflict, game_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/games/{gameId}/draw-offer/response": {
+      "post": {
+        "operationId": "respondToDraw",
+        "tags": [
+          "Games"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Accepts or declines the opponent's pending offer. The realtime path (Socket.IO) is primary and calls the same service; HTTP receipt time is taken after authentication.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "requestId",
+                  "response"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "requestId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Idempotency key, scoped to game and actor."
+                  },
+                  "response": {
+                    "type": "string",
+                    "enum": [
+                      "accept",
+                      "decline"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Applied, or answered from the ledger",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "game_not_found (also for non-participants)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "game_finished, stale_revision, not_your_turn, request_id_reused, draw_offer_pending, draw_offer_cooldown, no_draw_offer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Retryable: command_not_saved, game_state_conflict, game_unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameCommandError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -741,7 +2916,1283 @@
             }
           }
         }
+      },
+      "PlayerProfile": {
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "avatarUrl"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "description": "Identity visible to other players. Never includes email."
+      },
+      "TimeControl": {
+        "type": "object",
+        "required": [
+          "category",
+          "initialMs",
+          "incrementMs"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid",
+              "classical"
+            ]
+          },
+          "initialMs": {
+            "type": "integer"
+          },
+          "incrementMs": {
+            "type": "integer"
+          }
+        }
+      },
+      "TimeControlInput": {
+        "type": "object",
+        "required": [
+          "initialMs",
+          "incrementMs"
+        ],
+        "properties": {
+          "initialMs": {
+            "type": "integer"
+          },
+          "incrementMs": {
+            "type": "integer"
+          }
+        },
+        "description": "Must match one of the presets from GET /rooms/options."
+      },
+      "ColorPreference": {
+        "type": "string",
+        "enum": [
+          "white",
+          "black",
+          "random"
+        ],
+        "description": "The host's side; the challenger receives the other colour."
+      },
+      "Seat": {
+        "type": "object",
+        "required": [
+          "player",
+          "ready",
+          "online",
+          "color"
+        ],
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "online": {
+            "type": "boolean",
+            "description": "At least one authenticated socket, across tabs/devices."
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "Room": {
+        "type": "object",
+        "required": [
+          "id",
+          "revision",
+          "status",
+          "settings",
+          "seats",
+          "expiresAt",
+          "closedAt",
+          "createdAt",
+          "updatedAt",
+          "viewer",
+          "gameId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "description": "Increases with every persisted change. Clients send it back as expectedRevision."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "ready",
+              "started",
+              "cancelled",
+              "expired"
+            ]
+          },
+          "settings": {
+            "type": "object",
+            "required": [
+              "timeControl",
+              "colorPreference"
+            ],
+            "properties": {
+              "timeControl": {
+                "$ref": "#/components/schemas/TimeControl"
+              },
+              "colorPreference": {
+                "$ref": "#/components/schemas/ColorPreference"
+              }
+            }
+          },
+          "seats": {
+            "type": "object",
+            "required": [
+              "host",
+              "challenger"
+            ],
+            "properties": {
+              "host": {
+                "$ref": "#/components/schemas/Seat"
+              },
+              "challenger": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Seat"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "viewer": {
+            "type": "object",
+            "required": [
+              "role",
+              "canEditSettings",
+              "canInvite",
+              "canCancel",
+              "canLeave",
+              "canSetReady",
+              "canStart"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "host",
+                  "challenger"
+                ]
+              },
+              "canEditSettings": {
+                "type": "boolean"
+              },
+              "canInvite": {
+                "type": "boolean"
+              },
+              "canCancel": {
+                "type": "boolean"
+              },
+              "canLeave": {
+                "type": "boolean"
+              },
+              "canSetReady": {
+                "type": "boolean"
+              },
+              "canStart": {
+                "type": "boolean",
+                "description": "Host only, once both players are ready."
+              }
+            }
+          },
+          "gameId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "The game created when the room started."
+          }
+        },
+        "description": "Viewer-specific room snapshot; only seat holders can read it."
+      },
+      "RoomResponse": {
+        "type": "object",
+        "required": [
+          "room"
+        ],
+        "properties": {
+          "room": {
+            "$ref": "#/components/schemas/Room"
+          }
+        }
+      },
+      "RoomOptions": {
+        "type": "object",
+        "required": [
+          "timeControls",
+          "defaultTimeControlId",
+          "colorPreferences",
+          "roomTtlMinutes",
+          "invitationTtlMinutes"
+        ],
+        "properties": {
+          "timeControls": {
+            "type": "array",
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/TimeControl"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "id"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "defaultTimeControlId": {
+            "type": "string"
+          },
+          "colorPreferences": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ColorPreference"
+            }
+          },
+          "roomTtlMinutes": {
+            "type": "integer"
+          },
+          "invitationTtlMinutes": {
+            "type": "integer"
+          }
+        }
+      },
+      "Invitation": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "addressedBy",
+          "createdAt",
+          "expiresAt",
+          "respondedAt",
+          "sender",
+          "recipient",
+          "room",
+          "viewer"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "accepted",
+              "declined",
+              "cancelled",
+              "expired"
+            ],
+            "description": "Effective status; a pending invitation past expiresAt reads as expired."
+          },
+          "addressedBy": {
+            "type": "string",
+            "enum": [
+              "username",
+              "email"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "respondedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "sender": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "room": {
+            "type": "object",
+            "required": [
+              "id",
+              "status",
+              "timeControl",
+              "colorPreference",
+              "host",
+              "seatOpen",
+              "expiresAt",
+              "availability"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "waiting",
+                  "ready",
+                  "cancelled",
+                  "expired"
+                ]
+              },
+              "timeControl": {
+                "$ref": "#/components/schemas/TimeControl"
+              },
+              "colorPreference": {
+                "$ref": "#/components/schemas/ColorPreference"
+              },
+              "host": {
+                "$ref": "#/components/schemas/PlayerProfile"
+              },
+              "seatOpen": {
+                "type": "boolean"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "availability": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "full",
+                  "closed",
+                  "joined"
+                ]
+              }
+            }
+          },
+          "viewer": {
+            "type": "object",
+            "required": [
+              "role",
+              "canAccept",
+              "canDecline",
+              "canCancel"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "sender",
+                  "recipient"
+                ]
+              },
+              "canAccept": {
+                "type": "boolean"
+              },
+              "canDecline": {
+                "type": "boolean"
+              },
+              "canCancel": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "description": "Visible to its sender and recipient only. Contains no email addresses."
+      },
+      "InvitationResponse": {
+        "type": "object",
+        "required": [
+          "invitation"
+        ],
+        "properties": {
+          "invitation": {
+            "$ref": "#/components/schemas/Invitation"
+          }
+        }
+      },
+      "InvitationPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Invitation"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "readAt",
+          "actor",
+          "invitation",
+          "roomId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable; clients deduplicate inbox entries and toasts by it."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "invitation.received",
+              "invitation.accepted",
+              "invitation.declined"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "actor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlayerProfile"
+              }
+            ],
+            "nullable": true
+          },
+          "invitation": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Invitation"
+              }
+            ],
+            "nullable": true,
+            "description": "Current state of the referenced invitation, as seen by the notification owner."
+          },
+          "roomId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "NotificationPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor",
+          "unreadCount"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "unreadCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "GameMove": {
+        "type": "object",
+        "description": "An accepted, immutable move.",
+        "required": [
+          "ply",
+          "color",
+          "san",
+          "uci",
+          "from",
+          "to",
+          "promotion",
+          "captured",
+          "fen",
+          "remainingMs",
+          "elapsedMs",
+          "playedAt",
+          "requestId"
+        ],
+        "properties": {
+          "ply": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "san": {
+            "type": "string"
+          },
+          "uci": {
+            "type": "string",
+            "example": "e7e8q"
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^[a-h][1-8]$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^[a-h][1-8]$"
+          },
+          "promotion": {
+            "type": "string",
+            "enum": [
+              "q",
+              "r",
+              "b",
+              "n"
+            ],
+            "nullable": true
+          },
+          "captured": {
+            "type": "string",
+            "enum": [
+              "p",
+              "n",
+              "b",
+              "r",
+              "q"
+            ],
+            "nullable": true
+          },
+          "fen": {
+            "type": "string",
+            "description": "Position after the move."
+          },
+          "remainingMs": {
+            "type": "object",
+            "required": [
+              "w",
+              "b"
+            ],
+            "properties": {
+              "w": {
+                "type": "integer"
+              },
+              "b": {
+                "type": "integer"
+              }
+            }
+          },
+          "elapsedMs": {
+            "type": "integer"
+          },
+          "playedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Only on the viewer's own moves."
+          }
+        }
+      },
+      "GameUpdate": {
+        "type": "object",
+        "description": "Compact committed state, as broadcast on the game channel and returned with command results. Never contains the move history.",
+        "required": [
+          "id",
+          "revision",
+          "ply",
+          "fen",
+          "status",
+          "clocks",
+          "lastMove",
+          "checkSquare",
+          "drawOffer",
+          "viewer",
+          "legalMoves",
+          "endedAt",
+          "move"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "description": "Increases with every persisted change. Separate from ply."
+          },
+          "ply": {
+            "type": "integer"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "turn"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "in-progress"
+                    ]
+                  },
+                  "turn": {
+                    "type": "string",
+                    "enum": [
+                      "w",
+                      "b"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "result"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "finished"
+                    ]
+                  },
+                  "result": {
+                    "type": "object",
+                    "required": [
+                      "outcome",
+                      "reason"
+                    ],
+                    "properties": {
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "white",
+                          "black",
+                          "draw"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "checkmate",
+                          "resignation",
+                          "timeout",
+                          "timeout-vs-insufficient-material",
+                          "stalemate",
+                          "insufficient-material",
+                          "threefold-repetition",
+                          "fifty-move-rule",
+                          "agreement"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "clocks": {
+            "type": "object",
+            "required": [
+              "remainingMs",
+              "runningSide",
+              "serverTime"
+            ],
+            "properties": {
+              "remainingMs": {
+                "type": "object",
+                "required": [
+                  "w",
+                  "b"
+                ],
+                "properties": {
+                  "w": {
+                    "type": "integer"
+                  },
+                  "b": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "runningSide": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ],
+                "nullable": true
+              },
+              "serverTime": {
+                "type": "integer",
+                "description": "Server epoch ms of these readings; the running side keeps losing time after it."
+              }
+            }
+          },
+          "lastMove": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "from": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              }
+            }
+          },
+          "checkSquare": {
+            "type": "string",
+            "pattern": "^[a-h][1-8]$",
+            "nullable": true
+          },
+          "drawOffer": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "by",
+              "state"
+            ],
+            "properties": {
+              "by": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ]
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "declined"
+                ]
+              }
+            }
+          },
+          "viewer": {
+            "type": "object",
+            "required": [
+              "role",
+              "color",
+              "canMove",
+              "canResign",
+              "canOfferDraw",
+              "canRespondToDraw"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "player"
+                ]
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ]
+              },
+              "canMove": {
+                "type": "boolean"
+              },
+              "canResign": {
+                "type": "boolean"
+              },
+              "canOfferDraw": {
+                "type": "boolean"
+              },
+              "canRespondToDraw": {
+                "type": "boolean"
+              }
+            }
+          },
+          "legalMoves": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              }
+            },
+            "description": "Destinations per origin; empty unless it is the viewer's move."
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "move": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GameMove"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "Game": {
+        "type": "object",
+        "description": "Complete authorized snapshot: the initial load and every resynchronization. Only the two players can read it.",
+        "required": [
+          "id",
+          "revision",
+          "ply",
+          "fen",
+          "status",
+          "clocks",
+          "lastMove",
+          "checkSquare",
+          "drawOffer",
+          "viewer",
+          "legalMoves",
+          "endedAt",
+          "roomId",
+          "timeControl",
+          "initialFen",
+          "players",
+          "moves",
+          "startedAt",
+          "pgn"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "integer",
+            "description": "Increases with every persisted change. Separate from ply."
+          },
+          "ply": {
+            "type": "integer"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "status": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "turn"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "in-progress"
+                    ]
+                  },
+                  "turn": {
+                    "type": "string",
+                    "enum": [
+                      "w",
+                      "b"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": [
+                  "phase",
+                  "result"
+                ],
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "finished"
+                    ]
+                  },
+                  "result": {
+                    "type": "object",
+                    "required": [
+                      "outcome",
+                      "reason"
+                    ],
+                    "properties": {
+                      "outcome": {
+                        "type": "string",
+                        "enum": [
+                          "white",
+                          "black",
+                          "draw"
+                        ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "checkmate",
+                          "resignation",
+                          "timeout",
+                          "timeout-vs-insufficient-material",
+                          "stalemate",
+                          "insufficient-material",
+                          "threefold-repetition",
+                          "fifty-move-rule",
+                          "agreement"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "clocks": {
+            "type": "object",
+            "required": [
+              "remainingMs",
+              "runningSide",
+              "serverTime"
+            ],
+            "properties": {
+              "remainingMs": {
+                "type": "object",
+                "required": [
+                  "w",
+                  "b"
+                ],
+                "properties": {
+                  "w": {
+                    "type": "integer"
+                  },
+                  "b": {
+                    "type": "integer"
+                  }
+                }
+              },
+              "runningSide": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ],
+                "nullable": true
+              },
+              "serverTime": {
+                "type": "integer",
+                "description": "Server epoch ms of these readings; the running side keeps losing time after it."
+              }
+            }
+          },
+          "lastMove": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "from": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              }
+            }
+          },
+          "checkSquare": {
+            "type": "string",
+            "pattern": "^[a-h][1-8]$",
+            "nullable": true
+          },
+          "drawOffer": {
+            "type": "object",
+            "nullable": true,
+            "required": [
+              "by",
+              "state"
+            ],
+            "properties": {
+              "by": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ]
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "declined"
+                ]
+              }
+            }
+          },
+          "viewer": {
+            "type": "object",
+            "required": [
+              "role",
+              "color",
+              "canMove",
+              "canResign",
+              "canOfferDraw",
+              "canRespondToDraw"
+            ],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": [
+                  "player"
+                ]
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ]
+              },
+              "canMove": {
+                "type": "boolean"
+              },
+              "canResign": {
+                "type": "boolean"
+              },
+              "canOfferDraw": {
+                "type": "boolean"
+              },
+              "canRespondToDraw": {
+                "type": "boolean"
+              }
+            }
+          },
+          "legalMoves": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-h][1-8]$"
+              }
+            },
+            "description": "Destinations per origin; empty unless it is the viewer's move."
+          },
+          "endedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "roomId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "timeControl": {
+            "$ref": "#/components/schemas/TimeControl"
+          },
+          "initialFen": {
+            "type": "string"
+          },
+          "players": {
+            "type": "object",
+            "required": [
+              "w",
+              "b"
+            ],
+            "properties": {
+              "w": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PlayerProfile"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "online"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "human"
+                        ]
+                      },
+                      "online": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                ]
+              },
+              "b": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PlayerProfile"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "online"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "human"
+                        ]
+                      },
+                      "online": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "moves": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameMove"
+            }
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pgn": {
+            "type": "string",
+            "nullable": true,
+            "description": "Final PGN once finished."
+          }
+        }
+      },
+      "GameCommandResult": {
+        "type": "object",
+        "required": [
+          "game",
+          "duplicate"
+        ],
+        "properties": {
+          "game": {
+            "$ref": "#/components/schemas/GameUpdate"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "description": "True when this request id was already applied; nothing was applied again."
+          }
+        }
+      },
+      "GameCommandError": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "type": "object",
+            "required": [
+              "retryable",
+              "game"
+            ],
+            "properties": {
+              "retryable": {
+                "type": "boolean",
+                "description": "Retry the identical command (same requestId)."
+              },
+              "game": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/GameUpdate"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Games",
+      "description": "Authoritative games, moves, clocks and results"
+    }
+  ]
 }

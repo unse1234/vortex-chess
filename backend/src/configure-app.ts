@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { Environment } from './config/environment';
 import { ApiExceptionFilter } from './common/errors/api-exception.filter';
+import { RealtimeIoAdapter } from './modules/realtime/realtime-io.adapter';
 export function configureApp(app: NestExpressApplication) {
   const config = app.get(ConfigService<Environment, true>);
   app.setGlobalPrefix('api');
@@ -29,10 +30,11 @@ export function configureApp(app: NestExpressApplication) {
     origin: (origin, callback) =>
       callback(null, !!origin && origins.includes(origin)),
     credentials: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Vortix-CSRF'],
     maxAge: 600,
   });
   app.useGlobalFilters(new ApiExceptionFilter());
+  app.useWebSocketAdapter(new RealtimeIoAdapter(app, origins));
   app.enableShutdownHooks();
 }
