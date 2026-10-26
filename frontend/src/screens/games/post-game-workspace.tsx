@@ -72,6 +72,7 @@ export function PostGameWorkspace({
     maxSize: 720,
   });
   const { cursor, tree, fen, position, pending } = analysis;
+  const pendingDrop = analysis.pendingMove ? parseCoordinateMove(analysis.pendingMove) : null;
   function select(id: string) {
     setSelection(null);
     setPromotion(null);
@@ -92,6 +93,10 @@ export function PostGameWorkspace({
     highlights[uci.slice(2, 4) as Square] = "last-move";
   }
   if (position?.checkSquare) highlights[position.checkSquare] = "check";
+  if (pendingDrop) {
+    highlights[pendingDrop.from] = "pending";
+    highlights[pendingDrop.to] = "pending";
+  }
   if (selected) {
     highlights[selected] = "selected";
     for (const target of position?.legalMoves[selected] ?? [])
@@ -112,8 +117,7 @@ export function PostGameWorkspace({
       setPromotion({ cursor, from, to });
       return false;
     }
-    play(from, to);
-    return false;
+    return play(from, to);
   }
   function selectSquare(square: Square) {
     if (!interactive) return;
@@ -211,6 +215,7 @@ export function PostGameWorkspace({
                 }
               >
                 <ChessboardAdapter
+                pendingDrop={pendingDrop}
                   fen={fen}
                   orientation={orientation}
                   highlights={highlights}

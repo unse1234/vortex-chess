@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, type CSSProperties } from "react";
 import { Chessboard, defaultPieces } from "react-chessboard";
-import type { Square } from "@/features/games/types/game.types";
+import type { PromotionPiece, Square } from "@/features/games/types/game.types";
+import { getPieceAt, pieceColor } from "@/features/games/board-position";
 
 /**
  * The only module that knows about `react-chessboard`. The rest of the app
@@ -36,6 +37,8 @@ export type ChessboardAdapterProps = {
   onMoveRequest: (from: Square, to: Square) => boolean;
   /** Animate piece movement. */
   animate: boolean;
+  /** Display-only dropped piece while a server preview is pending. FEN stays validated. */
+  pendingDrop?: { from: Square; to: Square; promotion?: PromotionPiece } | null;
 };
 
 /**
@@ -83,6 +86,7 @@ export function ChessboardAdapter({
   onSquareSelect,
   onMoveRequest,
   animate,
+  pendingDrop,
 }: ChessboardAdapterProps) {
   const boardId = useId();
   // The library keeps the drop handler from when the drag began; always call the latest one.
@@ -98,6 +102,10 @@ export function ChessboardAdapter({
     }
     return styles;
   }, [highlights]);
+  const pendingPiece = pendingDrop ? getPieceAt(fen, pendingDrop.from) : null;
+  const pendingCode = pendingPiece
+    ? (`${pieceColor(pendingPiece)}${(pendingDrop?.promotion ?? pendingPiece).toUpperCase()}` as PieceCode)
+    : null;
 
   return (
     <Chessboard
@@ -110,6 +118,38 @@ export function ChessboardAdapter({
         allowDragging: interactive,
         showAnimations: animate,
         animationDurationInMs: 180,
+        // Keep drag feedback at the drop square without advancing chess state.
+        // Other pieces (including a castling rook or en-passant capture) stay
+        // exactly as recorded until the backend supplies the next position.
+        squareRenderer:
+          pendingDrop && pendingCode
+            ? ({ square, children }) => {
+                return (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      ...squareStyles[square],
+                      visibility:
+                        square === pendingDrop.from ? "hidden" : undefined,
+                    }}
+                  >
+                    {square !== pendingDrop.to ? (
+                      children
+                    ) : (
+                      <div
+                        aria-hidden
+                        data-piece={pendingCode}
+                        data-pending-drop="true"
+                        style={{ width: "100%", height: "100%", opacity: 0.75 }}
+                      >
+                        <BoardPiece code={pendingCode} />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            : undefined,
         canDragPiece: ({ square }) =>
           interactive && square !== null && canDragFrom(square as Square),
         onSquareClick: ({ square }) => onSquareSelect(square as Square),

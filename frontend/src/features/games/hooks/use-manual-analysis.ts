@@ -27,7 +27,8 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
     cursor: string;
     position: PreviewResponse;
   } | null>(null);
-  const [pending, setPending] = useState(false);
+  const [pendingMove, setPendingMove] = useState<string | null>(null);
+  const pending = pendingMove !== null;
   const [error, setError] = useState<string | null>(null);
   const [retryVersion, setRetryVersion] = useState(0);
   const gate = useMemo(() => new PreviewGate(), []);
@@ -48,7 +49,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
       setPreferred({});
       setCursor(mainlineId(game.ply));
       setValidated(null);
-      setPending(false);
+      setPendingMove(null);
       setError(null);
     };
     const restored = (event: PageTransitionEvent) => {
@@ -104,7 +105,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
 
   function select(id: string) {
     gate.cancel();
-    setPending(false);
+    setPendingMove(null);
     setError(null);
     setCursor(id);
     // Remember the chosen continuation so Previous -> Next at a branch's
@@ -139,7 +140,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
       path: [...input.path, uci],
     };
     const request = gate.begin();
-    setPending(true);
+    setPendingMove(uci);
     setError(null);
     mutate(async () => {
       try {
@@ -164,7 +165,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
               : "Couldn't validate this move.",
           );
       } finally {
-        if (request.current()) setPending(false);
+        if (request.current()) setPendingMove(null);
       }
     });
     return true;
@@ -176,7 +177,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
     setTree({});
     setPreferred({});
     setValidated(null);
-    setPending(false);
+    setPendingMove(null);
     setError(null);
     setCursor(mainlineId(base));
   }
@@ -197,6 +198,7 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
     discard,
     returnToOriginal,
     pending,
+    pendingMove,
     error,
     position: validated?.cursor === cursor ? validated.position : null,
     retry: () => {
