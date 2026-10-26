@@ -1,4 +1,4 @@
-# Vortix Chess frontend
+# Vortex Chess frontend
 
 Next.js + React + TypeScript. Feature services own transport, TanStack Query/hooks coordinate data, and screens/components present it. The existing design and Coming Soon scope gates are retained.
 
@@ -22,7 +22,11 @@ Session changes clear private queries/mutations while preserving the observed cu
 
 Set `NEXT_PUBLIC_API_MOCKING=enabled` and restart Next.js for existing MSW fixtures and scripted games. Demo login: `haseeb@vortex.io`, any password of at least eight characters. Demo behavior is not production authorization. API mode is the default in development and production.
 
-This backend milestone provides auth and health only. Launcher games/social requests show errors in API mode until later modules land. Use explicit demo mode to review existing game UI; API mode never substitutes fixtures for missing modules.
+The API provides auth, health, private rooms, invitations, notifications, authoritative games and Socket.IO realtime. A ready room's host starts the match and both players land on `/games/:id`, where moves, clocks, draws and resignation are live. Launcher recent-games and friends panels still show missing-endpoint errors in API mode until those modules land. API mode never substitutes fixtures for missing modules. Demo mode returns an empty notification inbox; room and invitation flows need the real API.
+
+## Rooms, invitations and realtime
+
+`/rooms/new` (setup), `/rooms/[roomId]` (waiting room) and `/rooms/join/[invitationId]` (invitation landing) use `features/rooms`, `features/invitations` and `features/notifications`. `RealtimeProvider` opens one Socket.IO connection per signed-in account (`lib/realtime/socket-realtime-client.ts`) at the API origin, path `<API path>/socket.io`; override the origin with `NEXT_PUBLIC_REALTIME_URL`. The handshake uses the in-memory access token, renewed through the auth refresh when the server rejects it. Realtime events and HTTP responses reconcile into the same Query cache by room revision; reconnects resubscribe and refetch notifications/invitations. Components never attach socket listeners or call Axios. See the [milestone document](../docs/Rooms_Invitations_Notifications_Milestone.md).
 
 ## Checks
 
@@ -33,4 +37,4 @@ npm test
 npm run build
 ```
 
-See the [authentication milestone](../docs/Backend_Authentication_Milestone.md) and [OpenAPI contract](../backend/openapi.json).
+See the [authentication milestone](../docs/Backend_Authentication_Milestone.md), [rooms/invitations milestone](../docs/Rooms_Invitations_Notifications_Milestone.md) and [OpenAPI contract](../backend/openapi.json).

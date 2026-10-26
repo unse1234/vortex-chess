@@ -1,15 +1,21 @@
 # Vortex Chess — Frontend Architecture and Delivery Plan
 
+> **History/replay/manual-analysis scope update (26 October 2026):** Participant-only backend-paginated history, original replay and temporary manual variations for finished games are implemented. This explicitly supersedes earlier exclusions of all branching and dedicated analysis routes. Active-game review remains read-only. Engine play, evaluation, hints, accuracy and automated review remain unavailable. See [contracts, state ownership and verification](History_Replay_Analysis_Milestone.md).
+
 > **Foundation/auth milestone (22 October 2026):** NestJS + PostgreSQL/Prisma email/password authentication and frontend API integration are implemented. See [endpoint contracts, setup, decisions and verification status](Backend_Authentication_Milestone.md). API mode is now the frontend default; MSW demo mode requires explicit opt-in. Rooms, invitations, games, Socket.IO, UCI and evaluation remain later backend milestones.
+
+> **Rooms/invitations milestone (22 October 2026):** Private rooms with revisioned settings and readiness, username/email invitations bound to account ids, durable notifications, authenticated Socket.IO presence/realtime and an outbox-driven offline invitation email are implemented and connected to new room setup, waiting-room and invitation-landing screens. See the [contracts, delivery policy and verification](Rooms_Invitations_Notifications_Milestone.md). Game creation from a ready room, rules, moves, clocks and the UCI engine are next; real email delivery awaits provider credentials.
+
+> **Gameplay milestone (26 October 2026):** A ready room starts exactly one server-authoritative game. Moves, draw offers, resignation and official clocks run through one serialized pipeline (chess.js validation, single-statement revision-guarded PostgreSQL commits, command deduplication, broadcast only after commit), with automatic threefold/fifty-move/insufficient-material draws, timeout adjudication, restart recovery from the full move history and a connected game screen. See the [contracts, adjudication and clock policy, recovery and measured performance](Gameplay_Milestone.md). History/replay and temporary manual analysis are delivered by the follow-up milestone above. UCI engine play and evaluation remain deferred.
 
 
 > **Current V1 scope and authentication override (22 October 2026):** Sign in uses **email + password only**. Sign up requires **username, email, password and password confirmation**; usernames remain required for invitations. Existing third-party authentication and password recovery are **Coming Soon** and inactive. This decision overrides older authentication/provider proposals and the broad design inventory below.
 
 V1 includes session handling/sign out, private player invitations by username or email, accept/decline and invitation notifications/toasts, teammate-engine gameplay, supported room/time/color settings, board/clocks/moves/promotion/draw/resign/results, independent earlier-move review with Back to Live, history and completed-game replay. Password visibility, board orientation and navigation remain supporting controls. Preserve existing service/mock-backed screens; scope availability does not imply that every V1 flow is already implemented.
 
-Everything else is **Coming Soon**: random matching, tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, evaluation/analysis/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
+Everything else is **Coming Soon**: random matching, tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, engine evaluation/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
 
-The frontend's typed scope map is `frontend/src/config/capabilities.ts` (`features`). Shared Coming Soon presentation lives in `components/display/`; route availability and existing deferred destinations live in `config/routes.ts`. Deferred controls use native disabled elements without handlers or hrefs. Deferred panels mount static unavailable presentations, avoiding queries and subscriptions. Existing deferred routes render the same unavailable screen on direct access. Keep V1 room/history placeholders accessible until their implementations land.
+The frontend's typed scope map is `frontend/src/config/capabilities.ts` (`features`). Shared Coming Soon presentation lives in `components/display/`; route availability and existing deferred destinations live in `config/routes.ts`. Deferred controls use native disabled elements without handlers or hrefs. Deferred panels mount static unavailable presentations, avoiding queries and subscriptions. Existing deferred routes render the same unavailable screen on direct access. Keep the implemented room/history destinations accessible.
 
 The three layers remain unchanged: Axios/services and realtime adapters handle transport, TanStack Query/hooks coordinate data, and screens/components render presentation. Domain services/types/utilities stay outside generic `lib/`. Mock authentication remains explicit MSW demo behavior (demo sign in: `haseeb@vortex.io`, any password with at least eight characters); API mode never silently falls back to it.
 
@@ -523,6 +529,7 @@ Once contracts stabilize, integration changes the API endpoint/transport adapter
 | `/matchmaking` | Derived from Find Players | Mode selection, searching, cancel and match-found state | Platform |
 | `/games` | Derived from Recent Games / Archives | Paginated game history | Platform |
 | `/games/[gameId]` | Designed | Active game or completed game record; authorized player/spectator view | Arena |
+| `/games/[gameId]/analysis` | Implemented scope update | Finished-game temporary manual analysis, without engine assistance | Arena |
 
 Route groups `(auth)`, `(platform)` and `(arena)` do not appear in the URL. They share the single root `app/layout.tsx` while allowing different page chrome. The game arena needs more board space than the launcher; this is why it has a separate nested shell.
 
@@ -542,7 +549,6 @@ Password reset, invite and session flows remain mocked until backend implementat
 | `/settings` | Account, board, audio and notification preferences |
 | `/players/[username]` | Player profile, if profile navigation is accepted |
 | `/community` | Full social destination if a sidebar is insufficient |
-| `/games/[gameId]/analysis` | Dedicated post-game/training review |
 
 Do not ship active links to unbuilt pages. In a faithful preview, unavailable capabilities can be shown disabled with a clear explanation. Friend search, notifications, invite picker, draw/resign, promotion, result and voice controls are panels/dialogs, not separate routes by default.
 
@@ -559,7 +565,7 @@ Do not ship active links to unbuilt pages. In a faithful preview, unavailable ca
 | Recent game selected | `/games/[gameId]`; backend determines active/completed access |
 | Recent games: View All / Archives | `/games` |
 | Play-room: Arena | `/play` after any necessary leave-game confirmation |
-| Game finished | Result overlay on the same game URL; return-to-play action |
+| Game finished | Result overlay with Replay game and Analyze manually actions for the same game |
 
 ## 7. Design system and component boundaries
 

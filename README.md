@@ -1,14 +1,14 @@
-# Vortix Chess
+# Vortex Chess
 
-One repository for the Vortix Chess frontend, backend, and project documentation.
+One repository for the Vortex Chess frontend, backend, and project documentation.
 
 | Directory | Contents |
 | --- | --- |
-| [frontend/](frontend/README.md) | Next.js interface, V1 chess experience, and API authentication integration |
-| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, and email/password sessions |
+| [frontend/](frontend/README.md) | Next.js interface, V1 chess experience, authentication, rooms, invitations, notifications and live games |
+| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, sessions, rooms/invitations, authoritative games and clocks, Socket.IO realtime and invitation email outbox |
 | [docs/](docs/) | Architecture, scope decisions, and milestone handoff |
 
-Start with the [project plan](docs/Vortix_Chess_Project_Plan.md) and the [authentication milestone](docs/Backend_Authentication_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
+Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentication milestone](docs/Backend_Authentication_Milestone.md), the [rooms, invitations and notifications milestone](docs/Rooms_Invitations_Notifications_Milestone.md) and the [gameplay milestone](docs/Gameplay_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
 
 Install dependencies separately from this directory:
 
@@ -26,4 +26,4 @@ npm --prefix frontend run build
 npm --prefix backend run build
 ```
 
-Backend HTTP integration tests additionally require a dedicated PostgreSQL test database; see [backend setup](backend/README.md).
+Backend HTTP integration tests additionally require a dedicated PostgreSQL test database; see [backend setup](backend/README.md). They run one file at a time and need the database to themselves.

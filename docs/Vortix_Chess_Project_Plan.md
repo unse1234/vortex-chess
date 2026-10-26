@@ -1,15 +1,21 @@
 # Vortix Chess — Consolidated Product and Implementation Plan
 
+> **History/replay/manual-analysis scope update (26 October 2026):** Participant-only backend-paginated history, original replay and temporary manual variations for finished games are implemented. This explicitly supersedes earlier exclusions of all branching and dedicated analysis routes. Active-game review remains read-only. Engine play, evaluation, hints, accuracy and automated review remain unavailable. See [contracts, state ownership and verification](History_Replay_Analysis_Milestone.md).
+
 > **Foundation/auth milestone (22 October 2026):** NestJS + PostgreSQL/Prisma email/password authentication and frontend API integration are implemented. See [endpoint contracts, setup, decisions and verification status](Backend_Authentication_Milestone.md). API mode is now the frontend default; MSW demo mode requires explicit opt-in. Rooms, invitations, games, Socket.IO, UCI and evaluation remain later backend milestones.
+
+> **Rooms/invitations milestone (22 October 2026):** Private rooms with revisioned settings and readiness, username/email invitations bound to account ids, durable notifications, authenticated Socket.IO presence/realtime and an outbox-driven offline invitation email are implemented and connected to new room setup, waiting-room and invitation-landing screens. See the [contracts, delivery policy and verification](Rooms_Invitations_Notifications_Milestone.md). Game creation from a ready room, rules, moves, clocks and the UCI engine are next; real email delivery awaits provider credentials.
+
+> **Gameplay milestone (26 October 2026):** A ready room starts exactly one server-authoritative game. Moves, draw offers, resignation and official clocks run through one serialized pipeline (chess.js validation, single-statement revision-guarded PostgreSQL commits, command deduplication, broadcast only after commit), with automatic threefold/fifty-move/insufficient-material draws, timeout adjudication, restart recovery from the full move history and a connected game screen. See the [contracts, adjudication and clock policy, recovery and measured performance](Gameplay_Milestone.md). History/replay and temporary manual analysis are delivered by the follow-up milestone above. UCI engine play and evaluation remain deferred.
 
 
 > **Current V1 scope and authentication override (22 October 2026):** Sign in uses **email + password only**. Sign up requires **username, email, password and password confirmation**; usernames remain required for invitations. Existing third-party authentication and password recovery are **Coming Soon** and inactive. This decision overrides older authentication/provider proposals and the broad design inventory below.
 
 V1 includes session handling/sign out, private player invitations by username or email, accept/decline and invitation notifications/toasts, teammate-engine gameplay, supported room/time/color settings, board/clocks/moves/promotion/draw/resign/results, independent earlier-move review with Back to Live, history and completed-game replay. Password visibility, board orientation and navigation remain supporting controls. Preserve existing service/mock-backed screens; scope availability does not imply that every V1 flow is already implemented.
 
-Everything else is **Coming Soon**: random matching, tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, evaluation/analysis/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
+Everything else is **Coming Soon**: random matching, tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, engine evaluation/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
 
-The frontend's typed scope map is `frontend/src/config/capabilities.ts` (`features`). Shared Coming Soon presentation lives in `components/display/`; route availability and existing deferred destinations live in `config/routes.ts`. Deferred controls use native disabled elements without handlers or hrefs. Deferred panels mount static unavailable presentations, avoiding queries and subscriptions. Existing deferred routes render the same unavailable screen on direct access. Keep V1 room/history placeholders accessible until their implementations land.
+The frontend's typed scope map is `frontend/src/config/capabilities.ts` (`features`). Shared Coming Soon presentation lives in `components/display/`; route availability and existing deferred destinations live in `config/routes.ts`. Deferred controls use native disabled elements without handlers or hrefs. Deferred panels mount static unavailable presentations, avoiding queries and subscriptions. Existing deferred routes render the same unavailable screen on direct access. Keep the implemented room/history destinations accessible.
 
 The three layers remain unchanged: Axios/services and realtime adapters handle transport, TanStack Query/hooks coordinate data, and screens/components render presentation. Domain services/types/utilities stay outside generic `lib/`. Mock authentication remains explicit MSW demo behavior (demo sign in: `haseeb@vortex.io`, any password with at least eight characters); API mode never silently falls back to it.
 
@@ -41,7 +47,8 @@ The user has chosen screenshots/assets as the implementation reference. Stitch M
 | Browse earlier moves during a live game without altering it | V1 |
 | Durable accepted-move records and completed-game history | V1 |
 | Completed-game replay and PGN presentation | V1 |
-| Engine evaluation and analysis | Final phase after core V1 works |
+| Temporary manual post-game variations | V1, local and unsaved |
+| Engine evaluation and automated analysis | Final phase after core V1 works |
 | Other design features | Coming Soon; inactive controls |
 
 Player vs engine requires the engine to choose moves in V1. Evaluation means optional analysis such as numerical score, depth, best-line suggestions and accuracy; that is a separate final phase.
@@ -515,7 +522,7 @@ During historical review:
 
 Historical positions are immutable backend-produced FEN snapshots. They can be read from an already loaded move list or fetched/cache-keyed by game ID and ply. Navigation does not undo, resend or apply a move to the real game.
 
-Do not implement speculative branching/analysis play as part of this review feature.
+Active-game review remains read-only. Finished-game temporary manual branches are supported by the scope update above; they never change the recorded game.
 
 ### 13.3 Completed-game history
 
@@ -585,7 +592,7 @@ Authorization, stable error codes and idempotency are part of each contract. The
 | /rooms/join/[inviteCode] | Invitation landing; correct auth identity required to accept |
 | /games | Current user's history |
 | /games/[gameId] | Active game or completed replay based on server state |
-| /games/[gameId]/analysis | Final phase only, if a dedicated analysis view is needed |
+| /games/[gameId]/analysis | Finished-game temporary manual analysis; engine assistance remains deferred |
 
 Notifications remain a panel. Draw, resign, promotion, invite picker and result remain dialogs/panels.
 
@@ -704,7 +711,7 @@ The launcher is user-reported complete. Preserve it and audit only as needed whe
 | 3 — Rooms/invitations | Username/email resolution, room state, acceptance, notification inbox/presence and offline mail delivery | Two accounts can create/join a room; online/offline/duplicate/expired flows verified |
 | 4 — PvP core | Rules, atomic moves, Socket.IO synchronization, clocks, draw/resign/result and persistence | Two real clients complete a valid timed game and recover after disconnect/refresh |
 | 5 — Engine play | UCI adapter and native process lifecycle, handshake/readiness, isolated bounded searches, clock limits and validated engine moves | A human-engine game completes through the shared pipeline; stop/restart/stale-output cases are verified against the teammate binary |
-| 6 — Integration/replay/history | Connect production API/socket paths, live review, completed replay/history, remove preview-only behavior from real mode | Browsing history never mutates live state; moves and results survive reload |
+| 6 — Integration/replay/history — complete for PvP | Production API/socket paths, live review, completed replay/history and temporary manual post-game variations | Browsing and analysis never mutate saved game state; original moves/results survive reload; temporary branches clear on exit |
 | 7 — Quality/performance | Browser/device checks, authorization/concurrency/failure tests and measured latency | Critical flows pass and measured results/remaining limits are documented |
 | 8 — Evaluation | Supported analysis UI/backend jobs and review integration | Scores have defined meaning and do not leak into restricted live matches |
 
