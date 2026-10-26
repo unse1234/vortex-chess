@@ -1,5 +1,7 @@
 # Vortex Chess — Frontend Architecture and Delivery Plan
 
+> **Engine gameplay milestone (26 October 2026):** Play vs Engine is enabled: the launcher's "Vs Engine" row opens the existing setup form at `/rooms/new?opponent=engine`, and engine games use the same arena with the engine's identity, server-reported thinking state, official clocks and an "Aborted" result for engine-service failures. Data flows Axios services → TanStack Query (the game's canonical cache entry, reconciled by revision) → presentation. No Elo or difficulty labels, evaluation, hints or automated review. See the [engine gameplay milestone](Engine_Gameplay_Milestone.md).
+
 > **History/replay/manual-analysis scope update (26 October 2026):** Participant-only backend-paginated history, original replay and temporary manual variations for finished games are implemented. This explicitly supersedes earlier exclusions of all branching and dedicated analysis routes. Active-game review remains read-only. Engine play, evaluation, hints, accuracy and automated review remain unavailable. See [contracts, state ownership and verification](History_Replay_Analysis_Milestone.md).
 
 > **Foundation/auth milestone (22 October 2026):** NestJS + PostgreSQL/Prisma email/password authentication and frontend API integration are implemented. See [endpoint contracts, setup, decisions and verification status](Backend_Authentication_Milestone.md). API mode is now the frontend default; MSW demo mode requires explicit opt-in. Rooms, invitations, games, Socket.IO, UCI and evaluation remain later backend milestones.

@@ -5,10 +5,10 @@ One repository for the Vortex Chess frontend, backend, and project documentation
 | Directory | Contents |
 | --- | --- |
 | [frontend/](frontend/README.md) | Next.js interface, V1 chess experience, authentication, rooms, invitations, notifications and live games |
-| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, sessions, rooms/invitations, authoritative games and clocks, Socket.IO realtime and invitation email outbox |
+| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, sessions, rooms/invitations, authoritative games and clocks, engine games through the HTTP engine adapter, Socket.IO realtime and invitation email outbox |
 | [docs/](docs/) | Architecture, scope decisions, and milestone handoff |
 
-Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentication milestone](docs/Backend_Authentication_Milestone.md), the [rooms, invitations and notifications milestone](docs/Rooms_Invitations_Notifications_Milestone.md) and the [gameplay milestone](docs/Gameplay_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
+Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentication milestone](docs/Backend_Authentication_Milestone.md), the [rooms, invitations and notifications milestone](docs/Rooms_Invitations_Notifications_Milestone.md), the [gameplay milestone](docs/Gameplay_Milestone.md), the [history/replay milestone](docs/History_Replay_Analysis_Milestone.md) and the [engine gameplay milestone](docs/Engine_Gameplay_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
 
 Install dependencies separately from this directory:
 

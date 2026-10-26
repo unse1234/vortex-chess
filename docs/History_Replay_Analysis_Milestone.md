@@ -80,4 +80,4 @@ Screenshots and temporary browser scripts/results are outside the repository und
 
 Explicit MSW demo mode preserves history loading/empty/error responses and recorded replay, including a promotion scenario whose plies now start at its saved initial position. It reports manual preview as unavailable rather than computing chess rules in the browser or falling through to a real backend. Arbitrary manual variations require real API mode.
 
-No engine is required for this milestone. Engine integration and production deployment/other-browser validation remain separate work.
+No engine is required for this milestone. Engine play is delivered by the [engine gameplay milestone](Engine_Gameplay_Milestone.md); manual analysis still never calls the engine. Production deployment/other-browser validation remain separate work.

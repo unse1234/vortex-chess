@@ -1,5 +1,7 @@
 # Vortix Chess — Consolidated Product and Implementation Plan
 
+> **Engine gameplay milestone (26 October 2026):** Player-versus-engine games are implemented against the teammate's deployed engine service. **Topology update: NestJS calls a FastAPI service over HTTP/JSON, which speaks UCI to the engine internally; this supersedes §17's instruction to spawn a UCI executable from NestJS.** The browser never calls the engine service. Engine turns are server-owned: clock-aware movetime, chess.js validation and the same atomic move/clock/result pipeline as player moves, one search per game identified by game and revision, stale replies discarded, bounded concurrency and retries, restart recovery, and an explicit engine-failure abort outcome (no winner, no draw). See [contracts, configuration, failure policy and measured latency](Engine_Gameplay_Milestone.md). Evaluation, hints, accuracy and automated review remain unavailable.
+
 > **History/replay/manual-analysis scope update (26 October 2026):** Participant-only backend-paginated history, original replay and temporary manual variations for finished games are implemented. This explicitly supersedes earlier exclusions of all branching and dedicated analysis routes. Active-game review remains read-only. Engine play, evaluation, hints, accuracy and automated review remain unavailable. See [contracts, state ownership and verification](History_Replay_Analysis_Milestone.md).
 
 > **Foundation/auth milestone (22 October 2026):** NestJS + PostgreSQL/Prisma email/password authentication and frontend API integration are implemented. See [endpoint contracts, setup, decisions and verification status](Backend_Authentication_Milestone.md). API mode is now the frontend default; MSW demo mode requires explicit opt-in. Rooms, invitations, games, Socket.IO, UCI and evaluation remain later backend milestones.
@@ -601,6 +603,8 @@ No active V1 /matchmaking route is required. Find Players/random matching, leade
 Define capabilities centrally and enforce server permissions as well as UI disabled state. Query parameters only prefill setup; they never grant game access or enable unsupported modes.
 
 ## 17. UCI engine integration and final evaluation
+
+> **Superseded transport (26 October 2026):** the teammate's engine is deployed behind a FastAPI HTTP/JSON service that speaks UCI internally. NestJS uses an HTTP adapter and does not spawn or manage a UCI process; §17.2's process lifecycle, per-game processes and output draining do not apply. Ownership, validation, clock and stale-output rules below still hold. See the [engine gameplay milestone](Engine_Gameplay_Milestone.md).
 
 ### 17.1 Confirmed communication and ownership
 

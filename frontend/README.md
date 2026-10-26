@@ -22,7 +22,7 @@ Session changes clear private queries/mutations while preserving the observed cu
 
 Set `NEXT_PUBLIC_API_MOCKING=enabled` and restart Next.js for existing MSW fixtures and scripted games. Demo login: `haseeb@vortex.io`, any password of at least eight characters. Demo behavior is not production authorization. API mode is the default in development and production.
 
-The API provides auth, health, private rooms, invitations, notifications, authoritative games and Socket.IO realtime. A ready room's host starts the match and both players land on `/games/:id`, where moves, clocks, draws and resignation are live. Launcher recent-games and friends panels still show missing-endpoint errors in API mode until those modules land. API mode never substitutes fixtures for missing modules. Demo mode returns an empty notification inbox; room and invitation flows need the real API.
+The API provides auth, health, private rooms, invitations, notifications, authoritative games and Socket.IO realtime. A ready room's host starts the match and both players land on `/games/:id`, where moves, clocks, draws and resignation are live. "Vs Engine" in the launcher opens `/rooms/new?opponent=engine` to start a game against the teammate's engine; the backend owns the engine's turns and the browser only shows its server-reported progress ([engine gameplay](../docs/Engine_Gameplay_Milestone.md)). Demo mode reports engine play as not configured. Launcher recent-games and friends panels still show missing-endpoint errors in API mode until those modules land. API mode never substitutes fixtures for missing modules. Demo mode returns an empty notification inbox; room and invitation flows need the real API.
 
 ## Rooms, invitations and realtime
 

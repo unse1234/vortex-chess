@@ -1,6 +1,6 @@
 # Vortex Chess API
 
-NestJS 12 + TypeScript, PostgreSQL and Prisma 7. Implemented: configuration, persistence, users, email/password authentication, health checks (milestone 1), plus private rooms, invitations, notifications, Socket.IO realtime/presence and an outbox for offline invitation emails (milestone 2), plus authoritative player-vs-player games: room start, chess.js rules, server clocks, draw/resign/results, durable moves and restart recovery (milestone 3, [gameplay](../docs/Gameplay_Milestone.md)). The UCI engine, evaluation and history browsing are later milestones.
+NestJS 12 + TypeScript, PostgreSQL and Prisma 7. Implemented: configuration, persistence, users, email/password authentication, health checks (milestone 1), plus private rooms, invitations, notifications, Socket.IO realtime/presence and an outbox for offline invitation emails (milestone 2), plus authoritative player-vs-player games: room start, chess.js rules, server clocks, draw/resign/results, durable moves and restart recovery (milestone 3, [gameplay](../docs/Gameplay_Milestone.md)), finished-game history and isolated manual analysis ([history](../docs/History_Replay_Analysis_Milestone.md)), and player-versus-engine games against the teammate's engine service over HTTP/JSON ([engine gameplay](../docs/Engine_Gameplay_Milestone.md)). Engine evaluation is a later milestone.
 
 ## Local setup (PowerShell)
 
@@ -36,6 +36,10 @@ Rooms, invitations, realtime and mail add the settings documented in [.env.examp
 
 The API forces UTC on every database connection so Prisma DateTime conversion agrees with the database clock, even when the PostgreSQL server defaults to a local timezone.
 
+### Engine service
+
+`ENGINE_BASE_URL` points the backend at the engine service (FastAPI over HTTP/JSON; it speaks UCI to the engine internally). Unset, engine games are disabled. Only the backend calls it; the browser never does. The search allowance, clock reserves, request deadlines, concurrency, queue, admission limit, retries and quarantine are the `ENGINE_*` settings in [.env.example](.env.example), explained with the scheduling and failure policy in the [engine gameplay milestone](../docs/Engine_Gameplay_Milestone.md#configuration). Engine turns, the search gate and timers run in-process, like the rest of game ownership (single instance).
+
 ## Contracts and security
 
 [OpenAPI](openapi.json) is the machine-readable contract. [Authentication milestone](../docs/Backend_Authentication_Milestone.md) describes decisions, browser coordination and test evidence. Existing frontend endpoint paths are retained:
@@ -51,6 +55,7 @@ The API forces UTC on every database connection so Prisma DateTime conversion ag
 - Invitations: `POST|GET /api/rooms/:id/invitations`, `GET /api/invitations`, `GET /api/invitations/:id`, `POST /api/invitations/:id/accept|decline|cancel`
 - Notifications: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/:id/read`, `POST /api/notifications/read-all`
 - Games: `POST /api/rooms/:id/start`, `GET /api/games/:id`, and an HTTP fallback for `POST /api/games/:id/moves|resign|draw-offer|draw-offer/response`; moves normally use the Socket.IO commands `game.move`, `game.resign`, `game.draw.offer`, `game.draw.respond` and the `game:<id>` channel ([contract](../docs/Gameplay_Milestone.md#realtime-contract))
+- Engine games: `GET /api/engine-games/status`, `POST /api/engine-games`; afterwards the ordinary game endpoints and channel, plus the `game.engine` progress event ([contract](../docs/Engine_Gameplay_Milestone.md#contracts))
 - Socket.IO at `/api/socket.io` (handshake `auth.token` = access token); events in the [milestone document](../docs/Rooms_Invitations_Notifications_Milestone.md#realtime-contract)
 
 Room, invitation and notification endpoints use the Bearer token only (no cookies), so they need no CSRF header.
@@ -76,6 +81,6 @@ $env:TEST_DATABASE_URL=$env:DATABASE_URL
 npm run test:e2e
 ```
 
-Integration files run one at a time (each application instance resumes active games at startup, the restart policy). The games suite (`test/games.e2e-spec.ts`) uses a controllable server clock and covers room start races, full games with special moves, authorization, deduplication, competing moves, clocks and timeouts, draw/resign finalization, reconnection, an injected PostgreSQL write failure and recovery after a restart. `test/games.bench.e2e-spec.ts` is an opt-in move-pipeline benchmark (`GAME_BENCH=1`; see the gameplay milestone).
+Integration files run one at a time (each application instance resumes active games at startup, the restart policy). The games suite (`test/games.e2e-spec.ts`) uses a controllable server clock and covers room start races, full games with special moves, authorization, deduplication, competing moves, clocks and timeouts, draw/resign finalization, reconnection, an injected PostgreSQL write failure and recovery after a restart. `test/games.bench.e2e-spec.ts` is an opt-in move-pipeline benchmark (`GAME_BENCH=1`; see the gameplay milestone). The engine suite (`test/engine-games.e2e-spec.ts`) runs the real app against an HTTP double of the engine service (`test/support/engine-service-double.ts`): both colours, a complete timed game, promotions, every normalized upstream failure, resignation and flag during a pending search, concurrent games, refresh/reconnect/second-tab and restart recovery, and admission. `test/engine-live.e2e-spec.ts` is an opt-in smoke check against a real engine service (`ENGINE_LIVE_URL=…`; a handful of requests, not a load test).
 
 The integration suite builds Nest code first to preserve constructor decorator metadata, then exercises actual HTTP routes and PostgreSQL (no persistence/auth mocks). Without `TEST_DATABASE_URL` it explicitly skips database tests. It removes only the users created by its own tests. The rooms/invitations suite (`test/rooms-invitations.e2e-spec.ts`) adds real Socket.IO clients and a capturing mail transport: authorization, username/email invitations without email exposure, duplicate and concurrent invitations, concurrent seat claims, idempotent accept/decline/cancel, expiry without the sweep, revision conflicts and readiness invalidation, inbox pagination and ownership, multi-tab presence, sign-out disconnects, outbox send/skip/retry/attempt limit and exclusive claiming. The authentication suite covers normalization and duplicates, concurrent registration, password hashing, validation, authentication, refresh/replay, concurrent rotation, logout, expiry, CSRF/CORS, rate limits and health/error responses.

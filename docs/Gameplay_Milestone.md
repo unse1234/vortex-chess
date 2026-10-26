@@ -248,4 +248,4 @@ Run against the isolated PostgreSQL 18 test cluster on loopback (port 55432). Yo
 - **Dead positions** beyond the listed material cases are not detected automatically.
 - **Account deletion** is blocked for accounts with games until an anonymization policy exists.
 - **Live review** remains read-only (list selection and stepping). Completed history, replay and temporary manual analysis are now delivered by the [history milestone](History_Replay_Analysis_Milestone.md); recent games use the authorized backend endpoint.
-- Engine play (UCI), evaluation, ratings, spectators and chat remain later milestones or Coming Soon.
+- Engine play is delivered by the [engine gameplay milestone](Engine_Gameplay_Milestone.md) (HTTP/JSON engine service, not a UCI process). Evaluation, ratings, spectators and chat remain later milestones or Coming Soon.
