@@ -4,7 +4,7 @@ import type { TimeControl } from "@/types/time-control.types";
 
 export type HistoryGame = RecentGame & {
   side: Color;
-  mode: "friends";
+  mode: "friends" | "engine";
   startedAt: string;
   timeControl: TimeControl;
 };

@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyEngineProgress,
   applyGameUpdate,
   carryReceivedAt,
+  currentEngineTurn,
   getSnapshotReceivedAt,
   reconcileGameSnapshot,
   stampSnapshotReceived,
 } from "@/features/games/realtime/reconcile-game-snapshot";
-import type { GameMove, GameSnapshot, GameUpdate } from "@/features/games/types/game.types";
+import type { EngineTurn, GameMove, GameSnapshot, GameUpdate } from "@/features/games/types/game.types";
 
 function snapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
   return {
     id: "game-1",
     roomId: "room-1",
+    mode: "friends",
+    engineTurn: null,
     revision: 1,
     ply: 0,
     timeControl: { category: "blitz", initialMs: 180_000, incrementMs: 2_000 },
@@ -138,5 +142,57 @@ describe("clock anchors", () => {
     expect(getSnapshotReceivedAt(stamped)).toBe(first);
     const patched = carryReceivedAt(stamped, { ...stamped });
     expect(getSnapshotReceivedAt(patched)).toBe(first);
+  });
+});
+
+describe("engine progress", () => {
+  const engineGame = (overrides: Partial<GameSnapshot> = {}) =>
+    snapshot({
+      mode: "engine",
+      players: {
+        w: { id: "engine", username: "lightweight-chess-engine", avatarUrl: null, kind: "engine", online: true },
+        b: { id: "black", username: "Black", avatarUrl: null, kind: "human", online: true },
+      },
+      ...overrides,
+    });
+  const turn = (revision: number, phase: EngineTurn["phase"] = "thinking"): EngineTurn => ({ revision, color: "w", phase, attempt: 1, since: 1 });
+
+  it("records progress for the current revision without changing game state or its clock anchor", () => {
+    const current = stampSnapshotReceived(engineGame({ revision: 3 }));
+    const next = applyEngineProgress(current, 3, turn(3));
+    expect(next.engineTurn).toEqual(turn(3));
+    expect(next.revision).toBe(3);
+    expect(next.moves).toBe(current.moves);
+    expect(getSnapshotReceivedAt(next)).toBe(getSnapshotReceivedAt(current));
+    expect(currentEngineTurn(next)).toEqual(turn(3));
+  });
+
+  it("ignores progress for an older revision and stops showing it once the game moves on", () => {
+    const current = engineGame({ revision: 5, engineTurn: turn(5) });
+    expect(applyEngineProgress(current, 4, turn(4, "retrying"))).toBe(current);
+    const moved = applyGameUpdate(current, update(6, 1, true, { status: { phase: "in-progress", turn: "b" } }));
+    expect(moved.kind === "applied" && currentEngineTurn(moved.game)).toBeNull();
+  });
+
+  it("never lets an older phase of the same turn replace a newer one", () => {
+    const current = engineGame({ revision: 2, engineTurn: { ...turn(2, "thinking"), since: 20 } });
+    expect(applyEngineProgress(current, 2, { ...turn(2, "queued"), since: 10 })).toBe(current);
+    expect(applyEngineProgress(current, 2, { ...turn(2, "retrying"), since: 30 }).engineTurn?.phase).toBe("retrying");
+  });
+
+  it("keeps the newest progress through the cache's own reconciliation, whichever path delivers it", () => {
+    // setQueryData runs the same structural-sharing reconcile as fetches do.
+    const queued = engineGame({ revision: 2, engineTurn: { ...turn(2, "queued"), since: 10 } });
+    const thinking = applyEngineProgress(queued, 2, { ...turn(2, "thinking"), since: 11 });
+    expect(reconcileGameSnapshot(queued, thinking).engineTurn?.phase).toBe("thinking");
+    // A fetch that started earlier cannot bring back an older phase.
+    expect(reconcileGameSnapshot(thinking, queued)).toBe(thinking);
+    // A snapshot can still fill progress the cache lacks.
+    expect(reconcileGameSnapshot(engineGame({ revision: 2 }), queued).engineTurn?.phase).toBe("queued");
+  });
+
+  it("shows no engine search once the game is finished", () => {
+    const finished = engineGame({ revision: 2, engineTurn: turn(2), status: { phase: "finished", result: { outcome: "aborted", reason: "engine-failure" } } });
+    expect(currentEngineTurn(finished)).toBeNull();
   });
 });

@@ -1,11 +1,14 @@
 import type { UserSummary } from "@/types/user-summary.types";
 
-export type GameResult = "win" | "loss" | "draw";
+/** `aborted`: an engine game ended by an engine-service failure, without a result. */
+export type GameResult = "win" | "loss" | "draw" | "aborted";
 
 /** Presentation tier supplied by the backend alongside a rating. */
 export type RatingTier = "standard" | "elite";
 
 export type GamePlayer = UserSummary & {
+  /** Present on history rows; the engine is never an account. */
+  kind?: "human" | "engine";
   rating?: number;
   ratingTier?: RatingTier;
 };

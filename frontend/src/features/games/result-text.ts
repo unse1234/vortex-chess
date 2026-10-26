@@ -10,6 +10,7 @@ const REASONS: Record<GameEndReason, string> = {
   "threefold-repetition": "by threefold repetition",
   "fifty-move-rule": "by the fifty-move rule",
   agreement: "by agreement",
+  "engine-failure": "because the engine service failed",
 };
 
 export type ResultSummary = {
@@ -22,6 +23,14 @@ export type ResultSummary = {
 export function summarizeResult(result: GameResult, viewer: ViewerPermissions): ResultSummary {
   const reason = REASONS[result.reason];
   const winnerName = result.outcome === "white" ? "White" : "Black";
+
+  if (result.outcome === "aborted") {
+    return {
+      headline: "Aborted",
+      detail: "The engine service could not supply a move, so the game was aborted. No result is recorded.",
+      tone: "neutral",
+    };
+  }
 
   if (result.outcome === "draw") {
     return { headline: "Draw", detail: `The game ended in a draw ${reason}.`, tone: "neutral" };

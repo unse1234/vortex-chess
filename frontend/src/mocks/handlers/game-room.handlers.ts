@@ -31,6 +31,22 @@ const notFound = () =>
 
 /** Snapshots and match chat. Game commands go through the mock realtime client, as in production. */
 export const gameRoomHandlers = [
+  // The demo has no engine service; it says so instead of simulating one.
+  http.get(apiPath("/engine-games/status"), async () => {
+    const failure = await simulateNetwork();
+    if (failure) return failure;
+    if (!getMockSessionUser()) return unauthenticated();
+    return HttpResponse.json({ available: false, configured: false, engine: null });
+  }),
+  http.post(apiPath("/engine-games"), async () => {
+    const failure = await simulateNetwork();
+    if (failure) return failure;
+    if (!getMockSessionUser()) return unauthenticated();
+    return HttpResponse.json(
+      { code: "engine_not_configured", message: "Engine play requires the real backend. This demo has no engine service." },
+      { status: 503 },
+    );
+  }),
   http.post(apiPath("/games/:gameId/analysis/preview"), async ({ params }) => {
     const failure = await simulateNetwork();
     if (failure) return failure;

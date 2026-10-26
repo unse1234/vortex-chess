@@ -1,4 +1,4 @@
-import type { GameSnapshot, GameUpdate } from "@/features/games/types/game.types";
+import type { EngineTurn, GameSnapshot, GameUpdate } from "@/features/games/types/game.types";
 
 /**
  * The one policy for complete snapshots, used by HTTP fetches and channel
@@ -19,9 +19,45 @@ export function reconcileGameSnapshot(
   // Compact completion events omit PGN. A full read of that same committed
   // revision may fill it once, without replacing moves, clocks or result.
   const fillPgn = current.status.phase === "finished" && incoming.status.phase === "finished" && current.pgn === null && incoming.pgn !== null;
-  return presenceChanged || fillPgn
-    ? carryReceivedAt(current, { ...current, players: presenceChanged ? incoming.players : current.players, pgn: fillPgn ? incoming.pgn : current.pgn })
+  // Engine progress is not revisioned state; the newest report wins, however it arrived.
+  const engineTurn = newerEngineTurn(current.engineTurn, incoming.engineTurn);
+  const engineTurnChanged = engineTurn !== current.engineTurn;
+  return presenceChanged || fillPgn || engineTurnChanged
+    ? carryReceivedAt(current, {
+        ...current,
+        players: presenceChanged ? incoming.players : current.players,
+        pgn: fillPgn ? incoming.pgn : current.pgn,
+        engineTurn,
+      })
     : current;
+}
+
+/** The later of two progress reports, by revision and then server time. */
+function newerEngineTurn(a: EngineTurn | null, b: EngineTurn | null) {
+  if (!b) return a;
+  if (!a) return b;
+  if (b.revision !== a.revision) return b.revision > a.revision ? b : a;
+  return b.since > a.since || (b.since === a.since && b.phase !== a.phase) ? b : a;
+}
+
+/**
+ * Records engine progress. It is not game state: it never changes the
+ * revision, progress for an older revision is ignored, and an older phase
+ * never replaces a newer one. The indicator ends when the game's revision
+ * moves past it (the engine moved, or the game ended).
+ */
+export function applyEngineProgress(current: GameSnapshot, revision: number, engineTurn: EngineTurn | null): GameSnapshot {
+  if (revision < current.revision || !engineTurn) return current;
+  const next = newerEngineTurn(current.engineTurn, engineTurn);
+  if (next === current.engineTurn) return current;
+  return carryReceivedAt(current, { ...current, engineTurn: next });
+}
+
+/** The engine's search for the position on the board, if one is running now. */
+export function currentEngineTurn(game: GameSnapshot): EngineTurn | null {
+  const turn = game.engineTurn;
+  if (!turn || turn.revision !== game.revision || game.status.phase !== "in-progress") return null;
+  return turn.color === game.status.turn ? turn : null;
 }
 
 export type UpdateResult =

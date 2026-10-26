@@ -209,6 +209,9 @@ export function buildSnapshot(game: MockGame): GameSnapshot {
   const common = {
     id: game.id,
     roomId: null,
+    // The scripted demo bot is a fixture, not the engine service.
+    mode: game.opponent.kind === "engine" ? "engine" : "friends",
+    engineTurn: null,
     revision: game.revision,
     timeControl: { category: "blitz", initialMs: 180_000, incrementMs: INCREMENT_MS },
     players: { w: whitePlayer, b: game.opponent },

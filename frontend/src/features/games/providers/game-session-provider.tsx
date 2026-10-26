@@ -18,6 +18,7 @@ import { gameHistoryKeys } from "@/features/games/queries/game-history.queries";
 import { gameQueryOptions } from "@/features/games/queries/game.options";
 import { gameChannel, type GameRealtimeEvent } from "@/features/games/realtime/game-events.types";
 import {
+  applyEngineProgress,
   applyGameUpdate,
   carryReceivedAt,
   getSnapshotReceivedAt,
@@ -165,6 +166,14 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
             const players = { ...current.players, [color]: { ...current.players[color], online } };
             return carryReceivedAt(current, { ...current, players });
           });
+          break;
+        }
+        case "game.engine": {
+          const { id, revision, engineTurn } = typed.payload;
+          if (id !== gameId) return;
+          queryClient.setQueryData<GameSnapshot>(queryKey, (current) =>
+            current ? applyEngineProgress(current, revision, engineTurn) : current,
+          );
           break;
         }
         case "channel.error":

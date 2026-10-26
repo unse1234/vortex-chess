@@ -22,9 +22,12 @@ export const routes = {
   profile: "/profile",
   telemetry: "/telemetry",
   leaderboard: "/leaderboard",
-  /** `invite` only prefills the recipient field; it grants nothing. */
-  createRoom: (options: { invite?: string } = {}) =>
-    withQuery("/rooms/new", { invite: options.invite }),
+  /**
+   * `invite` only prefills the recipient field and `opponent=engine` selects
+   * the engine setup; neither grants anything.
+   */
+  createRoom: (options: { invite?: string; opponent?: "engine" } = {}) =>
+    withQuery("/rooms/new", { invite: options.invite, opponent: options.opponent }),
   room: (roomId: string) => `/rooms/${encodeURIComponent(roomId)}`,
   /** Invitation landing page; only the invited account can respond. */
   invitation: (invitationId: string) => `/rooms/join/${encodeURIComponent(invitationId)}`,

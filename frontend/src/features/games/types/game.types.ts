@@ -10,13 +10,14 @@ type SquareRank = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
 export type Square = `${SquareFile}${SquareRank}`;
 
 export type GameParticipant = UserSummary & {
-  /** Engines play in a later milestone; their moves use the same pipeline. */
+  /** The engine seat is the engine service, never an account; its moves use the same pipeline. */
   kind: "human" | "engine";
   /** At least one connection to the server, in any tab. */
   online: boolean;
 };
 
-export type GameOutcome = "white" | "black" | "draw";
+/** `aborted`: an engine game ended because the engine service failed; no result is recorded. */
+export type GameOutcome = "white" | "black" | "draw" | "aborted";
 
 export type GameEndReason =
   | "checkmate"
@@ -27,7 +28,8 @@ export type GameEndReason =
   | "insufficient-material"
   | "threefold-repetition"
   | "fifty-move-rule"
-  | "agreement";
+  | "agreement"
+  | "engine-failure";
 
 export type GameResult = { outcome: GameOutcome; reason: GameEndReason };
 
@@ -104,12 +106,30 @@ export type GameLiveState = {
   endedAt: string | null;
 };
 
+export type GameMode = "friends" | "engine";
+
+/**
+ * The engine's search for the current turn. Not game state: it never changes
+ * the revision, and it describes the game only while `revision` matches.
+ */
+export type EngineTurn = {
+  revision: number;
+  color: Color;
+  phase: "queued" | "thinking" | "retrying";
+  attempt: number;
+  /** Server time this phase began. */
+  since: number;
+};
+
 /** A compact committed change: live state plus the move it accepted, if any. */
 export type GameUpdate = GameLiveState & { move: GameMove | null };
 
 /** The complete authorized game: initial load and every resynchronization. */
 export type GameSnapshot = GameLiveState & {
   roomId: string | null;
+  mode: GameMode;
+  /** Latest engine progress received; current only while its revision equals the game's. */
+  engineTurn: EngineTurn | null;
   timeControl: TimeControl;
   initialFen: string;
   players: Record<Color, GameParticipant>;
