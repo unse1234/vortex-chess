@@ -32,6 +32,9 @@ Migration: `backend/prisma/migrations/202610220001_auth_foundation/migration.sql
 | `POST /api/auth/refresh` | HttpOnly refresh cookie | 200, public user + new access token; rotates refresh cookie |
 | `GET /api/session` | Bearer access token | 200, `{ user }` |
 | `POST /api/session/sign-out` | Refresh cookie when present | 204; revokes its session and clears cookie; idempotent |
+| `POST /api/auth/forgot-password` | `email` | 202, generic `{ message }` whether or not the account exists ([password recovery](Password_Recovery.md)) |
+| `POST /api/auth/reset-password/status` | `token` | 200, `{ valid: true, expiresAt }` or `{ valid: false }`; never consumes the token |
+| `POST /api/auth/reset-password` | `token`, `password`, `confirmPassword` | 200, `{ message }`; ends every session and clears the refresh cookie; 400 `reset_link_invalid` for unusable links |
 | `GET /api/auth/username-availability` | `username` query | `{ username, available, tag: null }` |
 | `GET /api/health` | None | `{ status: "ok", region: "local" }`; matches the frontend latency service |
 | `GET /api/health/live` | None | Process liveness |
@@ -43,7 +46,7 @@ Errors use `{ code, message, fieldErrors? }`, with arrays of messages per field.
 
 ## Identity and session decisions
 
-- Login accepts email and password only. Registration requires matching confirmation. Passwords are 8-128 characters; login accepts existing passwords up to that maximum without trimming their contents. Alternative providers/recovery/OTP are absent from the API and disabled in the frontend.
+- Login accepts email and password only. Registration requires matching confirmation. Passwords are 8-128 characters; login accepts existing passwords up to that maximum without trimming their contents. Alternative providers and OTP are absent from the API and disabled in the frontend. Password recovery by emailed link is described in [Password recovery](Password_Recovery.md).
 - Email is trimmed and lowercased, with no provider-specific dot/plus alias rewriting. Username is 3-20 ASCII letters, digits or underscores; display case is preserved, with a unique lowercase key. Database CHECK constraints bind normalization to unique indexes, including concurrent writes.
 - Passwords use Argon2id with 64 MiB memory, three iterations and one lane. Missing-user login still verifies against a dummy hash. The API imposes request/body limits and per-IP throttling on authentication/availability endpoints.
 - Access JWTs default to five minutes and carry issuer/audience/session claims. They are held only in frontend memory. The access guard also checks the database session so logout/revocation is immediate.

@@ -21,6 +21,8 @@ export type SocketIdentity = {
   userId: string;
   sessionId: string;
   channels: Set<string>;
+  /** When the session was last confirmed active (epoch ms). */
+  verifiedAt: number;
 };
 
 /**

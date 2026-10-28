@@ -61,6 +61,17 @@ const schema = z
       .min(1)
       .max(50)
       .default(10),
+    /** Lifetime of an emailed password reset link. */
+    PASSWORD_RESET_TTL_MINUTES: z.coerce.number().int().min(5).max(120).default(30),
+    /** Minimum gap between reset emails for one account; requests inside it are silently ignored. */
+    PASSWORD_RESET_COOLDOWN_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(3600)
+      .default(60),
+    /** Reset emails per account per rolling hour. */
+    PASSWORD_RESET_MAX_PER_HOUR: z.coerce.number().int().min(1).max(20).default(5),
     MAIL_TRANSPORT: z.enum(['disabled', 'smtp']).default('disabled'),
     MAIL_FROM: z.string().min(3).max(254).optional(),
     SMTP_HOST: z.string().min(1).optional(),
@@ -137,12 +148,16 @@ const schema = z
       const parsed = new URL(env.APP_PUBLIC_URL);
       if (
         !['http:', 'https:'].includes(parsed.protocol) ||
+        parsed.username ||
+        parsed.search ||
+        parsed.hash ||
         (env.NODE_ENV === 'production' && parsed.protocol !== 'https:')
       )
         ctx.addIssue({
           code: 'custom',
           path: ['APP_PUBLIC_URL'],
-          message: 'Use an http(s) URL; HTTPS is required in production',
+          message:
+            'Use an http(s) URL without credentials, query or fragment; HTTPS is required in production',
         });
     }
     for (const origin of env.CORS_ORIGINS) {

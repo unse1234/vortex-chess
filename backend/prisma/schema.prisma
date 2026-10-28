@@ -26,6 +26,7 @@ model User {
   gameMoves GameMove[]
   gameCommands GameCommand[]
   matchmaking MatchmakingSearch?
+  passwordResetTokens PasswordResetToken[]
 }
 model AuthSession {
   id String @id @default(uuid()) @db.Uuid
@@ -48,6 +49,22 @@ model RefreshToken {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   usedAt DateTime? @db.Timestamptz(3)
   @@index([sessionId])
+}
+/// Single-use password reset credential. Only the SHA-256 digest of the emailed token is stored.
+model PasswordResetToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String @unique @db.Char(64)
+  /// The raw token sealed with AES-256-GCM for the outbox worker; cleared once the email settles or the token ends.
+  mailPayload String? @db.VarChar(200)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  consumedAt DateTime? @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  emailJobs EmailJob[]
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 enum RoomStatus {
@@ -161,6 +178,8 @@ model EmailJob {
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
   invitationId String? @db.Uuid
   invitation Invitation? @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  passwordResetTokenId String? @db.Uuid
+  passwordResetToken PasswordResetToken? @relation(fields: [passwordResetTokenId], references: [id], onDelete: Cascade)
   status EmailJobStatus @default(PENDING)
   attempts Int @default(0)
   maxAttempts Int

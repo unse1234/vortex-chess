@@ -17,8 +17,22 @@ import { SchemaValidationPipe } from '../../common/pipes/schema-validation.pipe'
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { AuthCookieService } from './auth-cookie.service';
-import { loginSchema, registerSchema, usernameSchema } from './auth.schemas';
-import type { LoginInput, RegisterInput } from './auth.schemas';
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  resetTokenStatusSchema,
+  usernameSchema,
+} from './auth.schemas';
+import type {
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  ResetTokenStatusInput,
+} from './auth.schemas';
+import { PasswordRecoveryService } from './password-recovery.service';
 @Controller('auth')
 @UseGuards(CsrfGuard)
 export class AuthController {
@@ -26,6 +40,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly cookies: AuthCookieService,
     private readonly users: UsersService,
+    private readonly recovery: PasswordRecoveryService,
   ) {}
   @Post('sign-up')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -69,6 +84,37 @@ export class AuthController {
         this.cookies.clear(response);
       throw error;
     }
+  }
+  @Post('forgot-password')
+  @HttpCode(202)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  forgotPassword(
+    @Body(new SchemaValidationPipe(forgotPasswordSchema))
+    body: ForgotPasswordInput,
+  ) {
+    return this.recovery.requestReset(body.email);
+  }
+  @Post('reset-password/status')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  resetTokenStatus(
+    @Body(new SchemaValidationPipe(resetTokenStatusSchema))
+    body: ResetTokenStatusInput,
+  ) {
+    return this.recovery.tokenStatus(body.token);
+  }
+  @Post('reset-password')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async resetPassword(
+    @Body(new SchemaValidationPipe(resetPasswordSchema))
+    body: ResetPasswordInput,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.recovery.resetPassword(body);
+    // Any session this browser held was revoked with the others.
+    this.cookies.clear(response);
+    return result;
   }
   @Get('username-availability')
   @Throttle({ default: { limit: 30, ttl: 60000 } })

@@ -37,7 +37,8 @@ export const features = {
   playstyle: { available: false, label: "Playstyle preference" },
   marketing: { available: false, label: "Tournament updates" },
   alternativeAuth: { available: false, label: "Alternative sign-in" },
-  passwordRecovery: { available: false, label: "Password recovery" },
+  /** Needs the real API; the mock demo never pretends to send or accept reset links. */
+  passwordRecovery: { available: !env.apiMocking, label: "Password recovery" },
 } as const satisfies Record<string, FeatureAvailability>;
 
 export type FeatureId = keyof typeof features;

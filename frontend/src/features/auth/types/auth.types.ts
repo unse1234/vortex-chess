@@ -24,3 +24,17 @@ export type UsernameAvailability = {
   /** Discriminator the backend would assign, e.g. "#0042". */
   tag: string | null;
 };
+
+export type ForgotPasswordRequest = { email: string };
+
+export type ResetPasswordRequest = {
+  /** Single-use credential from the emailed link; never stored or logged. */
+  token: string;
+  password: string;
+  confirmPassword: string;
+};
+
+export type ResetLinkStatus = { valid: true; expiresAt: string } | { valid: false };
+
+/** Message the API returns for recovery requests; never reveals whether an account exists. */
+export type RecoveryMessage = { message: string };

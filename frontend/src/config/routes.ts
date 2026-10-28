@@ -17,6 +17,8 @@ export const routes = {
   signIn: "/sign-in",
   signUp: "/sign-up",
   forgotPassword: "/forgot-password",
+  /** The emailed link carries the token in the fragment, never in the path or query. */
+  resetPassword: "/reset-password",
   terms: "/legal/terms",
   settings: "/settings",
   profile: "/profile",
@@ -48,6 +50,7 @@ const availableRoutePatterns: readonly RegExp[] = [
   /^\/sign-in$/,
   /^\/sign-up$/,
   /^\/forgot-password$/,
+  /^\/reset-password$/,
   /^\/legal\/terms$/,
   /^\/settings$/,
   /^\/profile$/,
@@ -96,6 +99,7 @@ export const deferredRoutes = {
   "/profile": "profile",
   "/settings": "settings",
   "/forgot-password": "passwordRecovery",
+  "/reset-password": "passwordRecovery",
 } as const satisfies Record<string, FeatureId>;
 
 export function routeFeature(href: string): FeatureId | undefined {

@@ -41,7 +41,7 @@ export class EmailWorkerService
       infer: true,
     });
     if (!this.transport) {
-      this.logger.log('Mail transport disabled; invitation emails stay queued.');
+      this.logger.log('Mail transport disabled; emails stay queued.');
       return;
     }
     if (seconds === 0) return;
@@ -108,16 +108,31 @@ export class EmailWorkerService
       await this.outbox.markSkipped(job, decision.reason);
       return;
     }
+    let final = true;
     try {
       const receipt = await this.transport!.send(decision.message);
       await this.outbox.markSent(job, receipt);
     } catch (error) {
       const permanent = error instanceof MailDeliveryError && error.permanent;
-      await this.outbox.markFailure(
-        job,
-        error instanceof Error ? error.message : 'Unknown mail error',
-        permanent,
-      );
+      final = permanent || job.attempts >= job.maxAttempts;
+      // Transport errors carry status codes only, never message content.
+      const reason =
+        error instanceof MailDeliveryError
+          ? error.message
+          : error instanceof Error
+            ? error.name
+            : 'Unknown mail error';
+      await this.outbox.markFailure(job, reason, permanent);
+      if (final)
+        this.logger.warn(
+          `Email job ${job.id} (${job.kind}) failed after ${job.attempts} attempt(s): ${reason}`,
+        );
     }
+    if (final && decision.settle)
+      await decision.settle().catch((error: unknown) =>
+        this.logger.warn(
+          `Email job ${job.id} cleanup failed: ${error instanceof Error ? error.name : 'UnknownError'}`,
+        ),
+      );
   }
 }

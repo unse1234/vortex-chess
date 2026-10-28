@@ -106,6 +106,7 @@ export class RealtimeGateway
             userId: user.id,
             sessionId,
             channels: new Set(),
+            verifiedAt: Date.now(),
           };
           socket.data = identity;
           next();

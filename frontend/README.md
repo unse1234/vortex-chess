@@ -12,7 +12,7 @@ npm run dev
 
 Start the backend using [its setup instructions](../backend/README.md). Frontend: `http://localhost:3000`. API: `http://localhost:3001/api`. Keep both on `localhost`, and include the exact frontend origin in API `CORS_ORIGINS`. Restart Next.js after public environment changes. Production needs an explicit API URL or a same-origin `/api` reverse proxy.
 
-Authentication uses email/password only. Registration includes username and password confirmation. Alternative providers and recovery remain disabled with Coming Soon labels. PostgreSQL ultimately enforces identity uniqueness.
+Authentication uses email/password only. Registration includes username and password confirmation. Password recovery uses emailed single-use links in API mode; alternative providers remain disabled with Coming Soon labels. PostgreSQL ultimately enforces identity uniqueness. See [password recovery](../docs/Password_Recovery.md) for SMTP setup and session revocation.
 
 Access tokens exist only in service memory. HttpOnly cookies carry rotating refresh tokens. Reload restores through `/auth/refresh`, then `/session`. Concurrent 401 responses share one refresh, and each failed authenticated request is retried at most once. Web Locks serialize refreshes across same-origin tabs. Without Web Locks, per-tab coordination applies; actual old-cookie replay deliberately revokes the session. BroadcastChannel sends session events, never tokens.
 

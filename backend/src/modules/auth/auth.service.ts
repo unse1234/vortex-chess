@@ -186,6 +186,31 @@ export class AuthService {
     }
   }
 
+  /**
+   * Revokes every live session of the account. Access tokens die with them:
+   * each request and socket handshake checks the session row.
+   */
+  async revokeUserSessionsInTx(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    now: Date,
+  ) {
+    const sessions = await tx.authSession.findMany({
+      where: { userId, revokedAt: null },
+      select: { id: true },
+    });
+    await tx.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    return sessions.map((session) => session.id);
+  }
+
+  /** After commit: closes this instance's connections for the sessions now. */
+  announceRevoked(sessionIds: string[]) {
+    for (const id of sessionIds) this.sessionEvents.revoked(id);
+  }
+
   private async issue(user: User, session: AuthSession, refreshToken: string) {
     const expiresIn = this.config.get('ACCESS_TOKEN_TTL_SECONDS', {
       infer: true,

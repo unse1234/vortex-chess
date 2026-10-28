@@ -3,7 +3,9 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { performance } from 'node:perf_hooks';
 import type { Socket } from 'socket.io';
 import type { z } from 'zod';
+import { AuthService } from '../auth/auth.service';
 import type { SocketIdentity } from '../realtime/realtime.contracts';
+import { RealtimePublisher } from '../realtime/realtime-publisher.service';
 import { ServerClock } from './clocks/server-clock';
 import type { GameLiveView } from './game-view';
 import {
@@ -32,6 +34,19 @@ function toAck(result: CommandResult): GameCommandAck {
   return { ok: false, error: { code, message, retryable }, game: result.game };
 }
 
+/**
+ * A socket's session is reconfirmed at most this often before game commands.
+ * Same-instance revocations disconnect immediately; this bounds the window for
+ * revocations committed by another instance.
+ */
+const SESSION_RECHECK_MS = 5_000;
+
+const sessionEnded: GameCommandAck = {
+  ok: false,
+  error: { code: 'unauthenticated', message: 'Your session has ended. Sign in again.', retryable: false },
+  game: null,
+};
+
 const invalid: GameCommandAck = {
   ok: false,
   error: { code: 'invalid_request', message: 'The command is malformed.', retryable: false },
@@ -49,6 +64,8 @@ export class GamesGateway {
   constructor(
     private readonly commands: GameCommandsService,
     private readonly clock: ServerClock,
+    private readonly auth: AuthService,
+    private readonly publisher: RealtimePublisher,
   ) {}
 
   @SubscribeMessage('game.move')
@@ -91,6 +108,20 @@ export class GamesGateway {
     if (!identity?.userId) return invalid;
     const parsed = schema.safeParse(body);
     if (!parsed.success) return invalid;
+    if (!(await this.sessionActive(identity))) return sessionEnded;
     return toAck(await run(identity.userId, parsed.data, ctx));
+  }
+
+  private async sessionActive(identity: SocketIdentity) {
+    const now = Date.now();
+    if (now - identity.verifiedAt < SESSION_RECHECK_MS) return true;
+    const active = await this.auth.activeSessionIds([identity.sessionId]);
+    if (active.has(identity.sessionId)) {
+      identity.verifiedAt = now;
+      return true;
+    }
+    // After the acknowledgement is flushed, so the client learns why.
+    setImmediate(() => this.publisher.disconnectSession(identity.sessionId));
+    return false;
   }
 }

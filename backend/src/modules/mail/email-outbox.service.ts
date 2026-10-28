@@ -12,12 +12,18 @@ export type ClaimedEmailJob = {
   dedupeKey: string;
   recipientId: string;
   invitationId: string | null;
+  passwordResetTokenId: string | null;
   attempts: number;
   maxAttempts: number;
   lockToken: string;
 };
 export type MailJobDecision =
-  | { action: 'send'; message: MailMessage }
+  | {
+      action: 'send';
+      message: MailMessage;
+      /** Runs once the job is final (sent or failed for good), e.g. to discard sealed link data. */
+      settle?: () => Promise<void>;
+    }
   | { action: 'skip'; reason: string };
 /** Rechecks domain validity immediately before sending. */
 export type MailJobHandler = (job: ClaimedEmailJob) => Promise<MailJobDecision>;
@@ -49,6 +55,7 @@ export class EmailOutboxService {
       dedupeKey: string;
       recipientId: string;
       invitationId?: string;
+      passwordResetTokenId?: string;
     },
   ) {
     const created = await tx.emailJob.createManyAndReturn({
@@ -93,7 +100,7 @@ export class EmailOutboxService {
         LIMIT ${batchSize}::int
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING "id", "kind", "dedupeKey", "recipientId", "invitationId", "attempts", "maxAttempts"`;
+      RETURNING "id", "kind", "dedupeKey", "recipientId", "invitationId", "passwordResetTokenId", "attempts", "maxAttempts"`;
     return rows.map((row) => ({ ...row, lockToken: token }));
   }
 
