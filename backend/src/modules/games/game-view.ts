@@ -141,7 +141,7 @@ function statusView(state: GameState): GameStatusView {
 function viewerView(state: GameState, color: Color): GameViewerView {
   const active = state.status === 'active';
   // The engine service cannot answer draw offers, so engine games have none.
-  const draws = active && state.mode === 'friends';
+  const draws = active && state.mode !== 'engine';
   const { offerBy, declinedBy } = state.draw;
   return {
     role: 'player',

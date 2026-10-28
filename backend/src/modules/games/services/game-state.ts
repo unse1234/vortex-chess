@@ -22,7 +22,7 @@ export type PlayerInfo =
   | { kind: 'human'; id: string; username: string }
   | { kind: 'engine'; id: string; username: string };
 
-export type GameMode = 'friends' | 'engine';
+export type GameMode = 'friends' | 'engine' | 'random';
 
 /** Stable identity of the engine seat in views; account ids are UUIDs, so it never collides. */
 export const ENGINE_PLAYER_ID = 'engine';

@@ -26,6 +26,7 @@ const schema = z
       .min(1)
       .transform((v) => v.split(',').map((s) => s.trim())),
     COOKIE_SECURE: flag.default(false),
+    MATCHMAKING_ENABLED: flag.default(true),
     COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce
       .number()

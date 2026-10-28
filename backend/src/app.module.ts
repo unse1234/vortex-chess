@@ -9,6 +9,7 @@ import { InvitationsModule } from './modules/invitations/invitations.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
+import { MatchmakingModule } from './modules/matchmaking/matchmaking.module';
 @Module({
   imports: [
     ConfigurationModule,
@@ -20,6 +21,7 @@ import { RoomsModule } from './modules/rooms/rooms.module';
     NotificationsModule,
     InvitationsModule,
     RoomsModule,
+    MatchmakingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

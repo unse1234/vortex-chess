@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { lockGameAdmission, assertGameEligible } from './game-admission';
 import type {
   GameColor,
   GameCommandKind,
@@ -52,7 +53,8 @@ export type CommandRecord = {
 };
 
 export type NewGame = {
-  roomId: string;
+  roomId?: string;
+  mode?: 'FRIENDS' | 'RANDOM';
   whiteId: string;
   blackId: string;
   initialMs: number;
@@ -86,9 +88,12 @@ export class GameRepository {
 
   /** Inside the room-start transaction, under the room lock. */
   async createInTx(tx: Prisma.TransactionClient, input: NewGame) {
+    await lockGameAdmission(tx);
+    await assertGameEligible(tx, [input.whiteId, input.blackId], input.mode === 'RANDOM');
     const game = await tx.game.create({
       data: {
         roomId: input.roomId,
+        mode: input.mode ?? 'FRIENDS',
         initialFen: STANDARD_START_FEN,
         fen: STANDARD_START_FEN,
         initialMs: input.initialMs,
@@ -115,12 +120,14 @@ export class GameRepository {
    * An advisory lock makes the global count exact under concurrent creation.
    */
   async admitEngineGameInTx(tx: Prisma.TransactionClient, playerId: string, maxActive: number) {
+    await lockGameAdmission(tx);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('vortix:engine-game-admission'))`;
     const own = await tx.game.findFirst({
       where: { mode: 'ENGINE', status: 'ACTIVE', participants: { some: { userId: playerId } } },
       select: { id: true },
     });
     if (own) return { admitted: false as const, reason: 'own_active' as const, gameId: own.id };
+    await assertGameEligible(tx, [playerId]);
     const active = await tx.game.count({ where: { mode: 'ENGINE', status: 'ACTIVE' } });
     if (active >= maxActive) return { admitted: false as const, reason: 'capacity' as const };
     return { admitted: true as const };
@@ -202,7 +209,7 @@ export class GameRepository {
           state: {
             id: game.id,
             roomId: game.roomId,
-            mode: game.mode === 'ENGINE' ? 'engine' : 'friends',
+            mode: game.mode === 'ENGINE' ? 'engine' : game.mode === 'RANDOM' ? 'random' : 'friends',
             players: { w: white, b: black },
             initialFen: game.initialFen,
             initialMs: game.initialMs,

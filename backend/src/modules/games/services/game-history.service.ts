@@ -96,7 +96,7 @@ export class GameHistoryService {
         endedAt: game.endedAt!.toISOString(),
         startedAt: game.startedAt.toISOString(),
         side,
-        mode: game.mode === 'ENGINE' ? ('engine' as const) : ('friends' as const),
+        mode: game.mode === 'ENGINE' ? ('engine' as const) : game.mode === 'RANDOM' ? ('random' as const) : ('friends' as const),
         timeControl: timeControlOf(game),
         result:
           game.result === 'ABORTED'

@@ -26,6 +26,13 @@ export class RealtimePublisher {
     this.server?.to(userSocketRoom(userId)).emit(REALTIME_EVENT, envelope);
   }
 
+  /** Account IDs are taken only from authenticated server-side socket data. */
+  connectedUserIds(): string[] {
+    if (!this.server) return [];
+    return [...new Set([...this.server.sockets.sockets.values()]
+      .map((socket) => (socket.data as SocketIdentity).userId).filter(Boolean))];
+  }
+
   /**
    * Builds the payload per subscribed viewer, so permitted actions stay
    * viewer-specific. A null payload means the viewer lost access; that socket
