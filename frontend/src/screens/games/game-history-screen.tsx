@@ -107,7 +107,7 @@ export function GameHistoryScreen() {
                     </time>
                   </span>
                   <span className="text-sm text-fg-muted">
-                    {game.side === "w" ? "White" : "Black"} · {game.mode === "engine" ? "Engine" : "Friends"} ·{" "}
+                    {game.side === "w" ? "White" : "Black"} · {game.mode === "engine" ? "Engine" : game.mode === "random" ? "Online" : "Friends"} ·{" "}
                     {formatTimeControl(game.timeControl)}
                   </span>
                   <span className="font-semibold capitalize">

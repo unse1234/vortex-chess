@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { features } from "@/config/capabilities";
 import {
   deferredRoutes,
   isRouteAvailable,
@@ -8,10 +9,10 @@ import {
 } from "@/config/routes";
 
 describe("V1 navigation boundaries", () => {
-  it("blocks existing deferred destinations including preset/deep-link queries", () => {
+  it("enforces feature availability for existing destinations including preset/deep-link queries", () => {
     for (const [path, feature] of Object.entries(deferredRoutes)) {
-      expect(isRouteAvailable(path)).toBe(false);
-      expect(isRouteAvailable(`${path}?mode=standard#section`)).toBe(false);
+      expect(isRouteAvailable(path)).toBe(features[feature].available);
+      expect(isRouteAvailable(`${path}?mode=standard#section`)).toBe(features[feature].available);
       expect(routeFeature(`${path}/?next=/play`)).toBe(feature);
     }
   });
@@ -21,6 +22,7 @@ describe("V1 navigation boundaries", () => {
       routes.signIn,
       routes.signUp,
       routes.play,
+      routes.matchmaking(),
       routes.terms,
       routes.createRoom({ invite: "player" }),
       routes.room("6f1c2d3e-0000-4000-8000-000000000000"),
@@ -48,7 +50,6 @@ describe("V1 navigation boundaries", () => {
       "/\\evil.invalid",
       "/\t/evil.invalid",
       "/unknown",
-      "/matchmaking",
     ]) {
       expect(toSafeInternalPath(path, routes.play)).toBe(routes.play);
     }

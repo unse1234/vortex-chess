@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { MatchmakingScreen } from "@/screens/matchmaking/matchmaking-screen";
+import { features } from "@/config/capabilities";
 import { FeatureUnavailableScreen } from "@/screens/placeholder/feature-unavailable-screen";
 
 export const metadata: Metadata = {
@@ -6,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <FeatureUnavailableScreen feature="matchmaking" />;
+  return features.matchmaking.available ? <MatchmakingScreen /> : <FeatureUnavailableScreen feature="matchmaking" />;
 }

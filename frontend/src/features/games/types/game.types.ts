@@ -106,7 +106,7 @@ export type GameLiveState = {
   endedAt: string | null;
 };
 
-export type GameMode = "friends" | "engine";
+export type GameMode = "friends" | "engine" | "random";
 
 /**
  * The engine's search for the current turn. Not game state: it never changes

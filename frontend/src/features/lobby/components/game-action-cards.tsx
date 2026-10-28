@@ -132,7 +132,7 @@ export function GameActionCards({ onPlayWithFriends }: GameActionCardsProps) {
         <ActionCardContent
           tone="sapphire"
           title="Find Players"
-          description="Play with random players and climb the ranks"
+          description="Find a human opponent for a casual, unrated game"
           badge={<InfoIcon />}
           art={
             <span className="flex items-center gap-6">

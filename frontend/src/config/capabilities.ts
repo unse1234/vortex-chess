@@ -16,7 +16,7 @@ export const features = {
   matchStart: { available: true, label: "Match start" },
   history: { available: true, label: "Game history and replay" },
   manualAnalysis: { available: true, label: "Temporary manual post-game analysis" },
-  matchmaking: { available: false, label: "Find Players" },
+  matchmaking: { available: !env.apiMocking, label: "Find Players" },
   team: { available: false, label: "2v2" },
   tournaments: { available: false, label: "Tournaments" },
   leaderboard: { available: false, label: "Leaderboard" },
