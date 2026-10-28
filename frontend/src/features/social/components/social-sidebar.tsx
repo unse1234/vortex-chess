@@ -1,7 +1,9 @@
 "use client";
 
+import { FeatureUnavailable } from "@/components/display/feature-unavailable";
 import { ChatBubbleIcon, GroupIcon } from "@/components/ui/icons";
 import { TabList, TabPanel, type TabItem } from "@/components/ui/tabs";
+import { features } from "@/config/capabilities";
 import { FriendsPanel } from "@/features/social/components/friends-panel";
 import { MessagesTeaser } from "@/features/social/components/messages-teaser";
 import type { Friend } from "@/features/social/types/friend.types";
@@ -9,7 +11,7 @@ import { cn } from "@/utils/cn";
 
 type SocialTab = "friends" | "chat";
 const tabs: readonly TabItem<SocialTab>[] = [
-  { value: "friends", label: "Friends", icon: <GroupIcon /> },
+  { value: "friends", label: "Friends", icon: <GroupIcon />, feature: "friends" },
   { value: "chat", label: "Chat", icon: <ChatBubbleIcon />, feature: "chat" },
 ];
 type SocialSidebarProps = {
@@ -26,7 +28,11 @@ export function SocialSidebar({ idPrefix, onInviteFriend, searchInputId, autoFoc
       <TabList items={tabs} value="friends" onValueChange={() => {}} idPrefix={idPrefix} label="Social" className="shrink-0 border-b border-[#181c27]" />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4">
         <TabPanel idPrefix={idPrefix} value="friends">
-          <FriendsPanel onInviteFriend={onInviteFriend} searchInputId={searchInputId} autoFocusSearch={autoFocusSearch} />
+          {features.friends.available ? (
+            <FriendsPanel onInviteFriend={onInviteFriend} searchInputId={searchInputId} autoFocusSearch={autoFocusSearch} />
+          ) : (
+            <FeatureUnavailable feature="friends" />
+          )}
         </TabPanel>
       </div>
       <div className="shrink-0 px-4 pb-4 pt-2"><MessagesTeaser /></div>

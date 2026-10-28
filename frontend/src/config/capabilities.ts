@@ -28,6 +28,7 @@ export const features = {
   voice: { available: false, label: "Voice chat" },
   chat: { available: false, label: "Chat" },
   spectating: { available: false, label: "Spectating" },
+  friends: { available: false, label: "Friends" },
   socialManagement: { available: false, label: "Friend management" },
   analysis: { available: false, label: "Engine evaluation and analysis" },
   telemetry: { available: false, label: "Advanced statistics" },
