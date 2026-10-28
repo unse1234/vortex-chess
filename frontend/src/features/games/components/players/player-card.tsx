@@ -1,6 +1,5 @@
 "use client";
 
-import { ComingSoon } from "@/components/display/coming-soon";
 
 import { Avatar } from "@/components/display/avatar";
 import { RobotIcon } from "@/components/ui/icons";
@@ -51,6 +50,7 @@ function playerTitle(own: boolean, kind: "human" | "engine") {
 export function PlayerCard({ color, recordedMs }: { color: Color; recordedMs?: number }) {
   const { game } = useGameSession();
   const player = game.players[color];
+  const rating = game.rating?.snapshots[color];
   const own = game.viewer.color === color;
   const readout = describeTurn(color, game);
   const opponentColor: Color = color === "w" ? "b" : "w";
@@ -103,7 +103,8 @@ export function PlayerCard({ color, recordedMs }: { color: Color; recordedMs?: n
           ) : null}
         </p>
         <p className="mt-[4px] flex flex-wrap items-center gap-x-[8px] gap-y-1 font-mono text-[13px] font-bold tracking-[0.04em]">
-          {player.kind === "engine" ? <span className="text-auth-label">Engine service</span> : <><span>Ratings</span><ComingSoon feature="ratings" /></>}
+          {player.kind === "engine" ? <span className="text-auth-label">Engine service</span>
+            : rating ? <span className="capitalize">{game.rating?.pool} {rating.rating}{rating.provisional ? " · Provisional" : ""}</span> : <span>Casual</span>}
           {captured.length > 0 ? (
             <>
               <span aria-hidden className="size-[4px] rounded-full bg-[#3d4b43]" />

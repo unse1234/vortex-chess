@@ -9,6 +9,32 @@ import {
   stampSnapshotReceived,
 } from "@/features/games/realtime/reconcile-game-snapshot";
 import type { EngineTurn, GameMove, GameSnapshot, GameUpdate } from "@/features/games/types/game.types";
+import type { GameRating } from "@/types/rating.types";
+
+describe("committed game ratings across updates and recovery", () => {
+  const initialRating: GameRating = { rated: true, pool: "blitz", policyVersion: "elo-v1",
+    snapshots: { w: { rating: 1200, games: 0, provisional: true }, b: { rating: 1200, games: 0, provisional: true } }, changes: null };
+  const settledRating: GameRating = { ...initialRating, changes: {
+    w: { before: 1200, delta: -16, after: 1184, score: 0 }, b: { before: 1200, delta: 16, after: 1216, score: 1 },
+  } };
+  it("carries settlement in the final revision and rejects a late pre-result read", () => {
+    const current = snapshot({ mode: "random", rating: initialRating });
+    const update: GameUpdate = { ...current, revision: 2, move: null,
+      status: { phase: "finished", result: { outcome: "black", reason: "resignation" } }, rating: settledRating };
+    const applied = applyGameUpdate(current, update);
+    expect(applied.kind).toBe("applied");
+    if (applied.kind !== "applied") throw new Error("Expected completion");
+    expect(applied.game.rating?.changes?.w?.after).toBe(1184);
+    expect(reconcileGameSnapshot(applied.game, current).rating).toBe(settledRating);
+  });
+  it("restores the same committed change and immutable starting rating from a reconnect snapshot", () => {
+    const finished = snapshot({ mode: "random", revision: 2, rating: settledRating,
+      status: { phase: "finished", result: { outcome: "black", reason: "resignation" } } });
+    const restored = reconcileGameSnapshot(undefined, finished);
+    expect(restored.rating?.snapshots.w?.rating).toBe(1200);
+    expect(restored.rating?.changes?.w?.delta).toBe(-16);
+  });
+});
 
 function snapshot(overrides: Partial<GameSnapshot> = {}): GameSnapshot {
   return {

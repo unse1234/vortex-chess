@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { EnginesModule } from '../engines/engines.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 import { ServerClock } from './clocks/server-clock';
@@ -16,7 +17,7 @@ import { GameHistoryService } from './services/game-history.service';
 import { AnalysisPreviewService } from './services/analysis-preview.service';
 
 @Module({
-  imports: [AuthModule, RealtimeModule, EnginesModule],
+  imports: [AuthModule, RealtimeModule, EnginesModule, RatingsModule],
   controllers: [GamesController, EngineGamesController],
   providers: [
     GameHistoryService,

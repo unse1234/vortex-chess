@@ -2,13 +2,14 @@
 
 import { Avatar } from "@/components/display/avatar";
 import { Skeleton } from "@/components/feedback/skeleton";
-import { ErrorIcon, ShieldPlusIcon } from "@/components/ui/icons";
+import { ErrorIcon } from "@/components/ui/icons";
+import type { ReactNode } from "react";
 import { ComingSoon } from "@/components/display/coming-soon";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useSessionQuery } from "@/features/auth/hooks/use-session-query";
 
 /** Header account block: avatar, name, level progress and rank. */
-export function AccountSummary() {
+export function AccountSummary({ children }: { children?: ReactNode }) {
   const hydrated = useHydrated();
   const { data: account, isPending, isError, refetch } = useSessionQuery();
 
@@ -42,7 +43,7 @@ export function AccountSummary() {
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-3 sm:gap-4 lg:gap-8">
+    <div className="flex min-w-0 flex-wrap items-center gap-3 sm:gap-4 lg:gap-8">
       <div className="flex min-w-0 items-center gap-3 sm:gap-3.5">
         <Avatar
           src={account.avatarUrl}
@@ -60,11 +61,7 @@ export function AccountSummary() {
           </div>
         </div>
       </div>
-      <p className="hidden h-[38px] items-center gap-2.5 rounded-sm border border-[#262b38] bg-[#171b27] px-4 text-[15px] font-medium text-fg md:inline-flex">
-        <ShieldPlusIcon className="text-xl text-fg-muted" />
-        <span>Rank</span>
-        <ComingSoon feature="ratings" />
-      </p>
+      {children}
     </div>
   );
 }

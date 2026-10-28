@@ -1,5 +1,7 @@
 # Random matchmaking — 28 October 2026
 
+> **Rated extension:** The original casual matchmaking behavior documented here is preserved. Rated selection, exact pool mapping, mutual widening windows and atomic Elo settlement are now implemented; the [ratings milestone](Rated_Matchmaking_Elo_Leaderboards.md) supersedes the ratings/leaderboard exclusions below.
+
 Authenticated accounts can use **Find Players / Play Online → Find Match** to enter a casual, unrated human game. This milestone supersedes the older plans' exclusion of random matchmaking. Friend invitations, private rooms and engine games retain their own setup flows. Ratings, Elo, rankings, engine fallback, public browsing and all other deferred capabilities remain disabled.
 
 ## Lifecycle and clocks

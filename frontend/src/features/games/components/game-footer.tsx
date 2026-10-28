@@ -23,6 +23,7 @@ export function GameFooter() {
           {SYSTEM_STATE[connection]}
         </span>
         {engine ? <span>ENGINE // {engine.username.toUpperCase()}</span> : null}
+        <span>{game.rating?.rated ? `RATED // ${game.rating.pool?.toUpperCase()}` : "CASUAL"}</span>
       </p>
       <p className="text-[#92a196]">{appConfig.name.toUpperCase()}</p>
     </footer>

@@ -10,6 +10,8 @@ One repository for the Vortex Chess frontend, backend, and project documentation
 
 Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentication milestone](docs/Backend_Authentication_Milestone.md), the [rooms, invitations and notifications milestone](docs/Rooms_Invitations_Notifications_Milestone.md), the [gameplay milestone](docs/Gameplay_Milestone.md), the [history/replay milestone](docs/History_Replay_Analysis_Milestone.md) and the [engine gameplay milestone](docs/Engine_Gameplay_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
 
+Rated random matchmaking, independent Bullet/Blitz/Rapid Elo and paginated leaderboards are implemented. See the [ratings milestone](docs/Rated_Matchmaking_Elo_Leaderboards.md) for policy, migrations, configuration and verification. Password recovery and [game audio](docs/Game_Audio.md) are also implemented; Google authentication remains disabled.
+
 Install dependencies separately from this directory:
 
 ```sh

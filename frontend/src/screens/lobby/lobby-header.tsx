@@ -8,6 +8,8 @@ import { GroupIcon, PowerIcon, SettingsIcon } from "@/components/ui/icons";
 import { env } from "@/config/env";
 import { routes } from "@/config/routes";
 import { AccountSummary } from "@/features/auth/components/account-summary";
+import { useSessionQuery } from "@/features/auth/hooks/use-session-query";
+import { AccountRatings } from "@/features/ratings/components/account-ratings";
 import { SignOutDialog } from "@/features/auth/components/sign-out-dialog";
 import { NotificationsPopover } from "@/features/notifications/components/notifications-popover";
 import { AudioSettings } from "@/features/audio/components/audio-settings";
@@ -25,6 +27,7 @@ export function LobbyHeader() {
   const { navigate } = useNavigateOrPreview();
   const isDesktop = useMediaQuery("(min-width: 1280px)");
   const latency = useApiLatency();
+  const { data: account } = useSessionQuery();
 
   function openCommunity() {
     // The sidebar is always visible on desktop; elsewhere it opens as a drawer.
@@ -33,8 +36,8 @@ export function LobbyHeader() {
   }
 
   return (
-    <header className="relative z-20 flex h-16 shrink-0 items-center gap-3 border-b border-[#161b26] bg-chrome px-3 sm:h-(--vc-header-height) sm:px-[18px]">
-      <AccountSummary />
+    <header className="relative z-20 flex min-h-16 shrink-0 flex-wrap items-center gap-3 border-b border-[#161b26] bg-chrome px-3 py-3 sm:min-h-(--vc-header-height) sm:px-[18px]">
+      <AccountSummary>{account ? <AccountRatings accountId={account.id} /> : null}</AccountSummary>
 
       <div
         role="group"

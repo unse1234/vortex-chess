@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_RATING_WINDOWS } from '../modules/ratings/rating-policy';
 const flag = z.enum(['true', 'false']).transform((v) => v === 'true');
 const schema = z
   .object({
@@ -27,6 +28,18 @@ const schema = z
       .transform((v) => v.split(',').map((s) => s.trim())),
     COOKIE_SECURE: flag.default(false),
     MATCHMAKING_ENABLED: flag.default(true),
+    RATINGS_ENABLED: flag.default(true),
+    /** seconds:maximum-difference, strictly widening; unrestricted after the last bound. */
+    MATCHMAKING_RATING_WINDOWS: z.string().regex(/^\d+:\d+(,\d+:\d+){0,9}$/)
+      .default(DEFAULT_RATING_WINDOWS.map((window) => `${window.untilSeconds}:${window.difference}`).join(','))
+      .transform((value) => value.split(',').map((part) => {
+        const [untilSeconds, difference] = part.split(':').map(Number);
+        return { untilSeconds, difference };
+      }))
+      .refine((windows) => windows.every((window, index) => window.untilSeconds > 0
+        && window.untilSeconds <= 300 && window.difference <= 10000
+        && (!index || (window.untilSeconds > windows[index - 1].untilSeconds
+          && window.difference >= windows[index - 1].difference))), 'Use increasing bounded rating windows'),
     COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
     ACCESS_TOKEN_TTL_SECONDS: z.coerce
       .number()

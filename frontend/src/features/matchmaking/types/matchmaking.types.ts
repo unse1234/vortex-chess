@@ -1,7 +1,10 @@
 import type { TimeControl } from "@/types/time-control.types";
+import type { RatingPool } from "@/types/rating.types";
 
 export type MatchmakingStatus = {
   revision: number;
+  rated: boolean;
+  ratingPool: RatingPool | null;
   state: "idle" | "searching" | "confirming" | "matched";
   searchId: string | null;
   timeControl: Pick<TimeControl, "initialMs" | "incrementMs"> | null;
@@ -14,7 +17,10 @@ export type MatchmakingStatus = {
 };
 export type MatchmakingOptions = {
   enabled: boolean;
-  timeControls: (TimeControl & { id: string })[];
+  ratingsEnabled: boolean;
+  policyVersion: string;
+  ratingWindows: { untilSeconds: number; difference: number }[];
+  timeControls: (TimeControl & { id: string; ratingPool: RatingPool | null })[];
   defaultTimeControlId: string;
   searchTtlMs: number;
   arrivalTtlMs: number;

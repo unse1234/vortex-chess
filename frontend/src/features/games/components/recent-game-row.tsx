@@ -4,7 +4,7 @@ import { ChevronRightIcon, DiamondIcon } from "@/components/ui/icons";
 import { routes } from "@/config/routes";
 import { GameResultBadge } from "@/features/games/components/game-result-badge";
 import type { RecentGame } from "@/features/games/types/recent-game.types";
-import { ComingSoon } from "@/components/display/coming-soon";
+import { RatingChangeText } from "@/components/display/rating-change";
 import { formatRelativeTime } from "@/utils/format-relative-time";
 
 const resultSentence = { win: "Won against", loss: "Lost to", draw: "Drew with", aborted: "Aborted game against" } as const;
@@ -40,7 +40,8 @@ export function RecentGameRow({ game, now }: { game: RecentGame; now: number | n
             className="flex flex-wrap items-center gap-1 text-[13px] text-fg-muted"
           >
             <DiamondIcon className="text-[13px]" />
-            <ComingSoon feature="ratings" />
+            <span className="capitalize">{game.rated ? `Rated ${game.ratingPool}` : "Casual"}</span>
+            {game.ratingChange ? <RatingChangeText change={game.ratingChange} /> : null}
             {playedAgo ? <span className="ml-1 text-fg-subtle sm:hidden">· {playedAgo}</span> : null}
           </span>
         </span>

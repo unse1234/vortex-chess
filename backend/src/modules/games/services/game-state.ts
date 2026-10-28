@@ -12,6 +12,7 @@ import {
   type PromotionPiece,
 } from '../rules/chess-rules';
 import { buildPgn } from '../rules/pgn';
+import type { GameRatingView } from '../../ratings/rating-view';
 
 /**
  * A seat. Players are accounts; the engine is the engine service, identified
@@ -63,6 +64,7 @@ export type GameState = {
   id: string;
   roomId: string | null;
   mode: GameMode;
+  rating?: GameRatingView;
   players: Record<Color, PlayerInfo>;
   initialFen: string;
   initialMs: number;

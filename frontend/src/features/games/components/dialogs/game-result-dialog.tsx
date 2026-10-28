@@ -1,6 +1,7 @@
 "use client";
 
-import { ComingSoon } from "@/components/display/coming-soon";
+import { RatingChangeText } from "@/components/display/rating-change";
+import type { GameRating } from "@/types/rating.types";
 import Link from "next/link";
 import { Dialog } from "@/components/ui/dialog";
 import { routes } from "@/config/routes";
@@ -14,11 +15,13 @@ type GameResultDialogProps = {
   onOpenChange: (open: boolean) => void;
   result: GameResult;
   viewer: ViewerPermissions;
+  rating?: GameRating;
 };
 
 /** Announces how a game ended, over the final position. */
-export function GameResultDialog({ gameId, open, onOpenChange, result, viewer }: GameResultDialogProps) {
+export function GameResultDialog({ gameId, open, onOpenChange, result, viewer, rating }: GameResultDialogProps) {
   const summary = summarizeResult(result, viewer);
+  const change = rating?.changes?.[viewer.color];
 
   return (
     <Dialog
@@ -49,7 +52,10 @@ export function GameResultDialog({ gameId, open, onOpenChange, result, viewer }:
         >
           {summary.headline.toUpperCase()}
         </p>
-        {result.outcome === "aborted" ? null : <p className="mt-3 text-sm text-fg-muted">Rating <ComingSoon feature="ratings" /></p>}
+        <p className="mt-3 text-sm text-fg-muted">
+          {rating?.rated ? <><span className="capitalize">Rated {rating.pool}</span>{" · "}
+            {change ? <RatingChangeText change={change} /> : "No rating change"}</> : "Casual · No rating change"}
+        </p>
       </div>
     </Dialog>
   );

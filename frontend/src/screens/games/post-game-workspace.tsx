@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
+import { RatingChangeText } from "@/components/display/rating-change";
 import {
   getOccupiedSquares,
   isPromotionMove,
@@ -180,8 +181,13 @@ export function PostGameWorkspace({
             {formatTimeControl(game.timeControl)} · {status?.outcome} /{" "}
             {status?.reason}
           </p>
+          <p className="mt-1 text-sm text-auth-label">
+            <span className="capitalize">{game.rating?.rated ? `Rated ${game.rating.pool}` : "Casual"}</span>
+            {game.rating?.changes?.[game.viewer.color] ? <> · <RatingChangeText change={game.rating.changes[game.viewer.color]!} /></> : null}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {status ? <Button variant="ghost" onClick={() => setResultOpen(true)}>View result</Button> : null}
           <Button variant="ghost" onClick={flipBoard}>
             Flip board
           </Button>
@@ -399,6 +405,7 @@ export function PostGameWorkspace({
           onOpenChange={setResultOpen}
           result={status}
           viewer={game.viewer}
+          rating={game.rating}
         />
       ) : null}
     </div>

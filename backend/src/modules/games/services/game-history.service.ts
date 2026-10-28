@@ -75,6 +75,11 @@ export class GameHistoryService {
         startedAt: true,
         result: true,
         mode: true,
+        rated: true,
+        ratingPool: true,
+        ratingPolicyVersion: true,
+        ratingSettlement: { select: { changes: { where: { userId },
+          select: { before: true, delta: true, after: true, score: true } } } },
         initialMs: true,
         incrementMs: true,
         participants: {
@@ -98,6 +103,10 @@ export class GameHistoryService {
         side,
         mode: game.mode === 'ENGINE' ? ('engine' as const) : game.mode === 'RANDOM' ? ('random' as const) : ('friends' as const),
         timeControl: timeControlOf(game),
+        rated: game.rated,
+        ratingPool: game.ratingPool,
+        ratingPolicyVersion: game.ratingPolicyVersion,
+        ratingChange: game.ratingSettlement?.changes[0] ?? null,
         result:
           game.result === 'ABORTED'
             ? ('aborted' as const)

@@ -10,6 +10,9 @@ import { ApiException } from '../../common/errors/api-exception';
 import type { Environment } from '../../config/environment';
 import { PrismaService } from '../../database/prisma.service';
 import type { MatchmakingSearch, Prisma } from '../../generated/prisma/client';
+import { retryTransaction } from '../../database/retry-transaction';
+import { RatingsRepository } from '../ratings/ratings.repository';
+import { ELO_V1, poolForPreset } from '../ratings/rating-policy';
 import { GamesService } from '../games/games.service';
 import {
   assertGameEligible,
@@ -18,6 +21,7 @@ import {
 import { RealtimePublisher } from '../realtime/realtime-publisher.service';
 import {
   DEFAULT_TIME_CONTROL_ID,
+  findPreset,
   TIME_CONTROL_PRESETS,
 } from '../rooms/time-controls';
 import type { JoinMatchmakingInput } from './matchmaking.schemas';
@@ -31,6 +35,8 @@ export function matchmakingView(row: MatchmakingSearch | null) {
   return {
     revision: row?.revision ?? 0,
     state: row?.state ?? 'idle',
+    rated: row?.rated ?? false,
+    ratingPool: row?.ratingPool ?? null,
     searchId: row?.searchId ?? null,
     timeControl: row
       ? { initialMs: row.initialMs, incrementMs: row.incrementMs }
@@ -58,6 +64,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     private readonly config: ConfigService<Environment, true>,
     private readonly games: GamesService,
     private readonly publisher: RealtimePublisher,
+    private readonly ratings: RatingsRepository,
   ) {}
 
   onModuleInit() {
@@ -110,7 +117,10 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
   options() {
     return {
       enabled: this.config.get('MATCHMAKING_ENABLED', { infer: true }),
-      timeControls: TIME_CONTROL_PRESETS,
+      ratingsEnabled: this.config.get('RATINGS_ENABLED', { infer: true }),
+      policyVersion: ELO_V1.version,
+      ratingWindows: this.config.get('MATCHMAKING_RATING_WINDOWS', { infer: true }),
+      timeControls: TIME_CONTROL_PRESETS.map((preset) => ({ ...preset, ratingPool: poolForPreset(preset.id) })),
       defaultTimeControlId: DEFAULT_TIME_CONTROL_ID,
       searchTtlMs: SEARCH_TTL_MS,
       arrivalTtlMs: ARRIVAL_TTL_MS,
@@ -135,6 +145,12 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
 
   join(userId: string, input: JoinMatchmakingInput) {
     this.requireEnabled();
+    const preset = findPreset(input.timeControl.initialMs, input.timeControl.incrementMs);
+    const pool = preset ? poolForPreset(preset.id) : null;
+    if (input.rated && !this.options().ratingsEnabled)
+      throw new ApiException(503, 'ratings_disabled', 'Rated matchmaking is currently unavailable.');
+    if (input.rated && !pool)
+      throw new ApiException(400, 'unrated_time_control', 'This time control supports casual games only.');
     return this.run(userId, async (tx, changed) => {
       const current = await tx.matchmakingSearch.findUnique({
         where: { userId },
@@ -143,19 +159,23 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       await assertGameEligible(tx, [userId], true);
       if (current && pending.includes(current.state)) {
         if (
+          current.rated !== input.rated ||
           current.initialMs !== input.timeControl.initialMs ||
           current.incrementMs !== input.timeControl.incrementMs
         )
           throw new ApiException(
             409,
             'search_already_active',
-            'Cancel your current search before choosing another time control.',
+            'Cancel your current search before choosing another mode or time control.',
           );
         return;
       }
       const now = new Date();
+      if (input.rated && pool) await this.ratings.ensureInTx(tx, [userId], pool);
       const data = {
         ...input.timeControl,
+        rated: input.rated,
+        ratingPool: input.rated ? pool : null,
         state: 'searching',
         searchId: randomUUID(),
         queuedAt: now,
@@ -171,29 +191,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
         update: { ...data, revision: { increment: 1 } },
       });
       changed.add(userId);
-      // Oldest compatible waiting account. The account primary key prevents self/duplicate seats.
-      const opponent = await tx.matchmakingSearch.findFirst({
-        where: {
-          state: 'searching',
-          userId: { not: userId },
-          ...input.timeControl,
-          expiresAt: { gt: now },
-          user: { gameSeats: { none: { game: { status: 'ACTIVE' } } } },
-        },
-        orderBy: [{ queuedAt: 'asc' }, { userId: 'asc' }],
-      });
-      if (!opponent) return;
-      await tx.matchmakingSearch.updateMany({
-        where: { userId: { in: [userId, opponent.userId] } },
-        data: {
-          state: 'confirming',
-          pairId: randomUUID(),
-          ready: false,
-          expiresAt: new Date(now.getTime() + ARRIVAL_TTL_MS),
-          revision: { increment: 1 },
-        },
-      });
-      changed.add(opponent.userId);
+      await this.pairWaitingInTx(tx, changed, userId);
     });
   }
 
@@ -253,6 +251,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
         seats[1].userId,
         row.initialMs,
         row.incrementMs,
+        row.rated,
       );
       await tx.matchmakingSearch.updateMany({
         where: { pairId: row.pairId },
@@ -275,7 +274,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
       changed: Set<string>,
     ) => Promise<void>,
   ) {
-    const result = await this.prisma.$transaction(
+    const result = await retryTransaction(() => this.prisma.$transaction(
       async (tx) => {
         await lockGameAdmission(tx);
         const changed = new Set<string>();
@@ -315,6 +314,8 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
           changed.add(row.userId);
         }
         await apply(tx, changed);
+        // Also run on polls and the sweep: existing searches can pair as BOTH windows widen.
+        if (this.options().enabled) await this.pairWaitingInTx(tx, changed);
         const updates = changed.size
           ? await tx.matchmakingSearch.findMany({
               where: { userId: { in: [...changed] } },
@@ -326,7 +327,7 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
         return { updates, row };
       },
       { maxWait: 10000, timeout: 10000 },
-    );
+    ));
     // Personal events go only to authenticated sockets for the account, in every tab.
     for (const row of result.updates) this.publish(row);
     const gameIds = new Set(
@@ -336,5 +337,37 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
     );
     for (const id of gameIds) await this.games.activate(id);
     return matchmakingView(result.row);
+  }
+
+  private async pairWaitingInTx(tx: Prisma.TransactionClient, changed: Set<string>, joiningUserId: string | null = null) {
+    const now = new Date();
+    const windows = JSON.stringify(this.config.get('MATCHMAKING_RATING_WINDOWS', { infer: true }));
+    for (;;) {
+      const pairs = await tx.$queryRaw<{ first: string; second: string }[]>`
+        WITH waiting AS (
+          SELECT s.*, r.rating,
+            COALESCE((SELECT (band->>'difference')::int FROM jsonb_array_elements(${windows}::jsonb) band
+              WHERE EXTRACT(EPOCH FROM (${now}::timestamptz - s."queuedAt")) < (band->>'untilSeconds')::int
+              ORDER BY (band->>'untilSeconds')::int LIMIT 1), 2147483647) AS max_difference
+          FROM "MatchmakingSearch" s LEFT JOIN "PlayerRating" r ON r."userId" = s."userId" AND r.pool = s."ratingPool"
+          WHERE s.state = 'searching' AND s."expiresAt" > ${now}
+            AND (${joiningUserId}::uuid IS NOT NULL OR s.rated)
+            AND (NOT s.rated OR ${this.options().ratingsEnabled}::boolean)
+            AND NOT EXISTS (SELECT 1 FROM "GameParticipant" p JOIN "Game" g ON g.id = p."gameId"
+              WHERE p."userId" = s."userId" AND g.status = 'ACTIVE')
+        ) SELECT a."userId" AS first, b."userId" AS second FROM waiting a JOIN waiting b
+          ON a."userId" <> b."userId" AND a.rated = b.rated
+          AND a."initialMs" = b."initialMs" AND a."incrementMs" = b."incrementMs"
+          AND a."ratingPool" IS NOT DISTINCT FROM b."ratingPool"
+          AND (NOT a.rated OR ABS(a.rating - b.rating) <= LEAST(a.max_difference, b.max_difference))
+          WHERE (${joiningUserId}::uuid IS NULL OR a."userId" = ${joiningUserId}::uuid)
+          ORDER BY a."queuedAt", a."userId", b."queuedAt", b."userId" LIMIT 1`;
+      const pair = pairs[0];
+      if (!pair) return;
+      await tx.matchmakingSearch.updateMany({ where: { userId: { in: [pair.first, pair.second] } },
+        data: { state: 'confirming', pairId: randomUUID(), ready: false,
+          expiresAt: new Date(now.getTime() + ARRIVAL_TTL_MS), revision: { increment: 1 } } });
+      changed.add(pair.first); changed.add(pair.second);
+    }
   }
 }

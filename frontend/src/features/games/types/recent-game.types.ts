@@ -1,4 +1,5 @@
 import type { UserSummary } from "@/types/user-summary.types";
+import type { RatingChange, RatingPool } from "@/types/rating.types";
 
 /** `aborted`: an engine game ended by an engine-service failure, without a result. */
 export type GameResult = "win" | "loss" | "draw" | "aborted";
@@ -15,6 +16,9 @@ export type GamePlayer = UserSummary & {
 
 /** A finished game from the viewer's perspective. */
 export type RecentGame = {
+  rated?: boolean;
+  ratingPool?: RatingPool | null;
+  ratingChange?: RatingChange | null;
   id: string;
   result: GameResult;
   endedAt: string;

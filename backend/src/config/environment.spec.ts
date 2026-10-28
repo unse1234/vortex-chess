@@ -47,4 +47,14 @@ describe('Environment validation', () => {
       }).COOKIE_SECURE,
     ).toBe(true);
   });
+  it('parses centrally configured rating windows and preserves the defaults', () => {
+    expect(validateEnvironment(base).MATCHMAKING_RATING_WINDOWS).toEqual([
+      { untilSeconds: 15, difference: 100 }, { untilSeconds: 30, difference: 200 }, { untilSeconds: 60, difference: 400 },
+    ]);
+    expect(validateEnvironment({ ...base, MATCHMAKING_RATING_WINDOWS: '10:50,20:150' }).MATCHMAKING_RATING_WINDOWS)
+      .toEqual([{ untilSeconds: 10, difference: 50 }, { untilSeconds: 20, difference: 150 }]);
+  });
+  it.each(['oops', '30:100,15:200', '15:400,30:100', '0:100', '301:100', '15:10001'])('rejects invalid rating window config %s', (value) => {
+    expect(() => validateEnvironment({ ...base, MATCHMAKING_RATING_WINDOWS: value })).toThrow('Invalid environment');
+  });
 });

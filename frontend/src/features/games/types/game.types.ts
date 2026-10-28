@@ -1,4 +1,5 @@
 import type { TimeControl } from "@/types/time-control.types";
+import type { GameRating } from "@/types/rating.types";
 import type { UserSummary } from "@/types/user-summary.types";
 
 export type Color = "w" | "b";
@@ -88,6 +89,8 @@ export type ViewerPermissions = {
 
 /** The authoritative live state carried by every update. */
 export type GameLiveState = {
+  /** Always supplied by the API; optional for legacy demo fixtures. */
+  rating?: GameRating;
   id: string;
   /** Increases with every persisted change (moves, offers, results). */
   revision: number;

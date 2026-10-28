@@ -9,8 +9,8 @@ export async function getMatchmakingStatus(signal?: AbortSignal) {
   const { data } = await httpClient.get<MatchmakingStatus>("/matchmaking", { signal });
   return data;
 }
-export async function joinMatchmaking(timeControl: NonNullable<MatchmakingStatus["timeControl"]>) {
-  const { data } = await httpClient.post<MatchmakingStatus>("/matchmaking/join", { timeControl });
+export async function joinMatchmaking(input: { timeControl: NonNullable<MatchmakingStatus["timeControl"]>; rated: boolean }) {
+  const { data } = await httpClient.post<MatchmakingStatus>("/matchmaking/join", input);
   return data;
 }
 export async function cancelMatchmaking(searchId: string) {

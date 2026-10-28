@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Vortex Chess API",
-    "version": "1.4.0",
-    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; See docs/History_Replay_Analysis_Milestone.md. Player-versus-engine games are implemented: the backend alone calls the engine service over HTTP/JSON; engine moves use the same authoritative pipeline (docs/Engine_Gameplay_Milestone.md). Engine evaluation, hints and automated review remain unavailable."
+    "version": "1.5.0",
+    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; See docs/History_Replay_Analysis_Milestone.md. Player-versus-engine games are implemented: the backend alone calls the engine service over HTTP/JSON; engine moves use the same authoritative pipeline (docs/Engine_Gameplay_Milestone.md). Engine evaluation, hints and automated review remain unavailable. Rated random human matchmaking, elo-v1 settlement and paginated competition-rank leaderboards are implemented (docs/Rated_Matchmaking_Elo_Leaderboards.md). Historical, friend and engine games remain casual."
   },
   "servers": [
     {
@@ -3470,6 +3470,454 @@
           }
         }
       }
+    },
+    "/ratings/me": {
+      "get": {
+        "operationId": "getMyRatings",
+        "summary": "Current account ratings in three independent pools",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyRatings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/ratings/me/history": {
+      "get": {
+        "operationId": "getMyRatingHistory",
+        "summary": "Personal committed rating changes, newest first",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pool",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bullet",
+                "blitz",
+                "rapid"
+              ]
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "description": "Opaque nextCursor with the same filters. createdAt DESC, gameId DESC."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingHistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/leaderboard": {
+      "get": {
+        "operationId": "getLeaderboard",
+        "summary": "Eligible non-provisional players ranked over the full pool before pagination",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pool",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bullet",
+                "blitz",
+                "rapid"
+              ]
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/leaderboard/me": {
+      "get": {
+        "operationId": "getMyLeaderboardPosition",
+        "summary": "Global competition rank or provisional/ineligible placement status",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pool",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "bullet",
+                "blitz",
+                "rapid"
+              ]
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardPosition"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/matchmaking/options": {
+      "get": {
+        "operationId": "getMatchmakingOptions",
+        "summary": "Exact presets, backend rating-pool mapping, feature gates and window policy",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingOptions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/matchmaking": {
+      "get": {
+        "operationId": "getMatchmakingStatus",
+        "summary": "Authoritative account-scoped queue and game assignment recovery",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or unknown query fields"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/matchmaking/join": {
+      "post": {
+        "operationId": "joinMatchmaking",
+        "summary": "Join rated or casual random human matchmaking",
+        "description": "Defaults to casual for old clients. Only backend-mapped bullet/blitz/rapid presets support rated mode. Both current rating windows must allow the pair. Existing search is idempotent; a different mode or clock conflicts. Server derives identity, pool and rating. No client ratings, result or deltas are accepted.",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinMatchmaking"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, custom clock or unsupported rated time control"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Active game or incompatible search"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Matchmaking or ratings disabled"
+          }
+        }
+      }
+    },
+    "/matchmaking/cancel": {
+      "post": {
+        "operationId": "cancelMatchmaking",
+        "summary": "Cancel only this search; stale IDs and committed games are unchanged",
+        "description": "Idempotent and account-scoped. Searches expire in five minutes; paired arrival expires in 30 seconds. Cancellation remains available with feature flags disabled.",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, custom clock or unsupported rated time control"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Active game or incompatible search"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Matchmaking or ratings disabled"
+          }
+        }
+      }
+    },
+    "/matchmaking/ready": {
+      "post": {
+        "operationId": "readyMatchmaking",
+        "summary": "Confirm arrival; the second confirmation atomically creates the game and starts clocks",
+        "description": "Idempotent and account-scoped. Searches expire in five minutes; paired arrival expires in 30 seconds. Cancellation remains available with feature flags disabled.",
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body, custom clock or unsupported rated time control"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Active game or incompatible search"
+          },
+          "429": {
+            "description": "Rate limited"
+          },
+          "503": {
+            "description": "Matchmaking or ratings disabled"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4295,7 +4743,8 @@
           "viewer",
           "legalMoves",
           "endedAt",
-          "move"
+          "move",
+          "rating"
         ],
         "properties": {
           "id": {
@@ -4528,6 +4977,9 @@
               }
             ],
             "nullable": true
+          },
+          "rating": {
+            "$ref": "#/components/schemas/GameRating"
           }
         }
       },
@@ -4555,7 +5007,8 @@
           "startedAt",
           "pgn",
           "mode",
-          "engineTurn"
+          "engineTurn",
+          "rating"
         ],
         "properties": {
           "id": {
@@ -4828,7 +5281,8 @@
             "type": "string",
             "enum": [
               "friends",
-              "engine"
+              "engine",
+              "random"
             ]
           },
           "engineTurn": {
@@ -4838,6 +5292,9 @@
               }
             ],
             "nullable": true
+          },
+          "rating": {
+            "$ref": "#/components/schemas/GameRating"
           }
         }
       },
@@ -5000,7 +5457,11 @@
           "result",
           "timeControl",
           "viewer",
-          "opponent"
+          "opponent",
+          "rated",
+          "ratingPool",
+          "ratingPolicyVersion",
+          "ratingChange"
         ],
         "properties": {
           "id": {
@@ -5026,7 +5487,8 @@
             "type": "string",
             "enum": [
               "friends",
-              "engine"
+              "engine",
+              "random"
             ]
           },
           "result": {
@@ -5046,6 +5508,52 @@
           },
           "opponent": {
             "$ref": "#/components/schemas/HistoryOpponent"
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "ratingPool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ],
+            "nullable": true
+          },
+          "ratingPolicyVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "ratingChange": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "before",
+              "delta",
+              "after",
+              "score"
+            ],
+            "properties": {
+              "before": {
+                "type": "integer"
+              },
+              "delta": {
+                "type": "integer"
+              },
+              "after": {
+                "type": "integer"
+              },
+              "score": {
+                "type": "number",
+                "enum": [
+                  0,
+                  0.5,
+                  1
+                ]
+              }
+            },
+            "nullable": true
           }
         }
       },
@@ -5196,6 +5704,742 @@
               "human",
               "engine"
             ]
+          }
+        }
+      },
+      "RatingPool": {
+        "type": "string",
+        "enum": [
+          "bullet",
+          "blitz",
+          "rapid"
+        ]
+      },
+      "RatingChange": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "before",
+          "delta",
+          "after",
+          "score"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer"
+          },
+          "delta": {
+            "type": "integer"
+          },
+          "after": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "enum": [
+              0,
+              0.5,
+              1
+            ]
+          }
+        }
+      },
+      "GameRating": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rated",
+          "pool",
+          "policyVersion",
+          "snapshots",
+          "changes"
+        ],
+        "properties": {
+          "rated": {
+            "type": "boolean"
+          },
+          "pool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ],
+            "nullable": true
+          },
+          "policyVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "snapshots": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "w",
+              "b"
+            ],
+            "properties": {
+              "w": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rating",
+                  "games",
+                  "provisional"
+                ],
+                "properties": {
+                  "rating": {
+                    "type": "integer"
+                  },
+                  "games": {
+                    "type": "integer"
+                  },
+                  "provisional": {
+                    "type": "boolean"
+                  }
+                },
+                "nullable": true
+              },
+              "b": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rating",
+                  "games",
+                  "provisional"
+                ],
+                "properties": {
+                  "rating": {
+                    "type": "integer"
+                  },
+                  "games": {
+                    "type": "integer"
+                  },
+                  "provisional": {
+                    "type": "boolean"
+                  }
+                },
+                "nullable": true
+              }
+            }
+          },
+          "changes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "w",
+              "b"
+            ],
+            "properties": {
+              "w": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "before",
+                  "delta",
+                  "after",
+                  "score"
+                ],
+                "properties": {
+                  "before": {
+                    "type": "integer"
+                  },
+                  "delta": {
+                    "type": "integer"
+                  },
+                  "after": {
+                    "type": "integer"
+                  },
+                  "score": {
+                    "type": "number",
+                    "enum": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  }
+                },
+                "nullable": true
+              },
+              "b": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "before",
+                  "delta",
+                  "after",
+                  "score"
+                ],
+                "properties": {
+                  "before": {
+                    "type": "integer"
+                  },
+                  "delta": {
+                    "type": "integer"
+                  },
+                  "after": {
+                    "type": "integer"
+                  },
+                  "score": {
+                    "type": "number",
+                    "enum": [
+                      0,
+                      0.5,
+                      1
+                    ]
+                  }
+                },
+                "nullable": true
+              }
+            },
+            "nullable": true
+          }
+        }
+      },
+      "RatingProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pool",
+          "rating",
+          "peakRating",
+          "games",
+          "wins",
+          "draws",
+          "losses",
+          "revision",
+          "provisional",
+          "placementsRemaining"
+        ],
+        "properties": {
+          "pool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ]
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "peakRating": {
+            "type": "integer"
+          },
+          "games": {
+            "type": "integer"
+          },
+          "wins": {
+            "type": "integer"
+          },
+          "draws": {
+            "type": "integer"
+          },
+          "losses": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "placementsRemaining": {
+            "type": "integer"
+          }
+        }
+      },
+      "MyRatings": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyVersion",
+          "items"
+        ],
+        "properties": {
+          "policyVersion": {
+            "type": "string",
+            "enum": [
+              "elo-v1"
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingProfile"
+            }
+          }
+        }
+      },
+      "RatingHistoryItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "before",
+          "delta",
+          "after",
+          "score",
+          "gameId",
+          "pool",
+          "createdAt",
+          "policyVersion",
+          "opponent"
+        ],
+        "properties": {
+          "before": {
+            "type": "integer"
+          },
+          "delta": {
+            "type": "integer"
+          },
+          "after": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number",
+            "enum": [
+              0,
+              0.5,
+              1
+            ]
+          },
+          "gameId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "opponent": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "username"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "username": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "RatingHistoryPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingHistoryItem"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "LeaderboardEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "user",
+          "rank",
+          "rating",
+          "games",
+          "wins",
+          "draws",
+          "losses"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "username"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "username": {
+                "type": "string"
+              }
+            }
+          },
+          "rank": {
+            "type": "integer"
+          },
+          "rating": {
+            "type": "integer"
+          },
+          "games": {
+            "type": "integer"
+          },
+          "wins": {
+            "type": "integer"
+          },
+          "draws": {
+            "type": "integer"
+          },
+          "losses": {
+            "type": "integer"
+          }
+        }
+      },
+      "LeaderboardPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pool",
+          "page",
+          "limit",
+          "total",
+          "asOf",
+          "items"
+        ],
+        "properties": {
+          "pool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ]
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "asOf": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardEntry"
+            }
+          }
+        }
+      },
+      "LeaderboardPosition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pool",
+          "rating",
+          "peakRating",
+          "games",
+          "wins",
+          "draws",
+          "losses",
+          "revision",
+          "provisional",
+          "placementsRemaining",
+          "status",
+          "rank",
+          "asOf"
+        ],
+        "properties": {
+          "pool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ]
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "peakRating": {
+            "type": "integer"
+          },
+          "games": {
+            "type": "integer"
+          },
+          "wins": {
+            "type": "integer"
+          },
+          "draws": {
+            "type": "integer"
+          },
+          "losses": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "provisional": {
+            "type": "boolean"
+          },
+          "placementsRemaining": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ranked",
+              "provisional",
+              "ineligible"
+            ]
+          },
+          "rank": {
+            "type": "integer",
+            "nullable": true
+          },
+          "asOf": {
+            "type": "integer"
+          }
+        }
+      },
+      "MatchmakingStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revision",
+          "state",
+          "rated",
+          "ratingPool",
+          "searchId",
+          "timeControl",
+          "queuedAt",
+          "expiresAt",
+          "ready",
+          "gameId",
+          "reason",
+          "serverTime"
+        ],
+        "properties": {
+          "revision": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "searching",
+              "confirming",
+              "matched"
+            ]
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "ratingPool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ],
+            "nullable": true
+          },
+          "searchId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "timeControl": {
+            "type": "object",
+            "required": [
+              "initialMs",
+              "incrementMs"
+            ],
+            "properties": {
+              "initialMs": {
+                "type": "integer"
+              },
+              "incrementMs": {
+                "type": "integer"
+              }
+            },
+            "description": "Must match one of the presets from GET /rooms/options.",
+            "nullable": true
+          },
+          "queuedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "gameId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "serverTime": {
+            "type": "integer"
+          }
+        }
+      },
+      "MatchmakingPreset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "initialMs",
+          "incrementMs",
+          "id",
+          "ratingPool"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid",
+              "classical"
+            ]
+          },
+          "initialMs": {
+            "type": "integer"
+          },
+          "incrementMs": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ratingPool": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "blitz",
+              "rapid"
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "MatchmakingOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "enabled",
+          "ratingsEnabled",
+          "policyVersion",
+          "timeControls",
+          "defaultTimeControlId",
+          "searchTtlMs",
+          "arrivalTtlMs",
+          "ratingWindows"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "ratingsEnabled": {
+            "type": "boolean"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "timeControls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchmakingPreset"
+            }
+          },
+          "defaultTimeControlId": {
+            "type": "string"
+          },
+          "searchTtlMs": {
+            "type": "integer"
+          },
+          "arrivalTtlMs": {
+            "type": "integer"
+          },
+          "ratingWindows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "untilSeconds",
+                "difference"
+              ],
+              "properties": {
+                "untilSeconds": {
+                  "type": "integer"
+                },
+                "difference": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "JoinMatchmaking": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "timeControl"
+        ],
+        "properties": {
+          "timeControl": {
+            "$ref": "#/components/schemas/TimeControlInput"
+          },
+          "rated": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "SearchCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "searchId"
+        ],
+        "properties": {
+          "searchId": {
+            "type": "string",
+            "format": "uuid"
           }
         }
       }

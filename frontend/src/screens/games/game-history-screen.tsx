@@ -6,6 +6,7 @@ import { ErrorState } from "@/components/feedback/error-state";
 import { Skeleton } from "@/components/feedback/skeleton";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
+import { RatingChangeText } from "@/components/display/rating-change";
 import { useSessionQuery } from "@/features/auth/hooks/use-session-query";
 import { useGameHistoryQuery } from "@/features/games/hooks/use-game-history-query";
 import type { HistoryFilters } from "@/features/games/types/game-history.types";
@@ -109,6 +110,9 @@ export function GameHistoryScreen() {
                   <span className="text-sm text-fg-muted">
                     {game.side === "w" ? "White" : "Black"} · {game.mode === "engine" ? "Engine" : game.mode === "random" ? "Online" : "Friends"} ·{" "}
                     {formatTimeControl(game.timeControl)}
+                    <span className="mt-1 block capitalize">{game.rated ? `Rated ${game.ratingPool}` : "Casual"}
+                      {game.ratingChange ? <> · <RatingChangeText change={game.ratingChange} /></> : null}
+                    </span>
                   </span>
                   <span className="font-semibold capitalize">
                     {game.result} → Replay

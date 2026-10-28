@@ -22,7 +22,7 @@ Session changes clear private queries/mutations while preserving the observed cu
 
 Set `NEXT_PUBLIC_API_MOCKING=enabled` and restart Next.js for existing MSW fixtures and scripted games. Demo login: `haseeb@vortex.io`, any password of at least eight characters. Demo behavior is not production authorization. API mode is the default in development and production.
 
-The API provides auth, health, private rooms, invitations, notifications, authoritative games and Socket.IO realtime. A ready room's host starts the match and both players land on `/games/:id`, where moves, clocks, draws and resignation are live. "Vs Engine" in the launcher opens `/rooms/new?opponent=engine` to start a game against the teammate's engine; the backend owns the engine's turns and the browser only shows its server-reported progress ([engine gameplay](../docs/Engine_Gameplay_Milestone.md)). Demo mode reports engine play as not configured. Launcher recent-games and friends panels still show missing-endpoint errors in API mode until those modules land. API mode never substitutes fixtures for missing modules. Demo mode returns an empty notification inbox; room and invitation flows need the real API.
+The API provides auth, health, private rooms, invitations, notifications, authoritative games and Socket.IO realtime. A ready room's host starts the match and both players land on `/games/:id`, where moves, clocks, draws and resignation are live. "Vs Engine" in the launcher opens `/rooms/new?opponent=engine` to start a game against the teammate's engine; the backend owns the engine's turns and the browser only shows its server-reported progress ([engine gameplay](../docs/Engine_Gameplay_Milestone.md)). Demo mode reports engine play as not configured. Launcher recent games use persisted history; Friends remains Coming Soon. API mode never substitutes fixtures for missing modules. Demo mode returns an empty notification inbox; room and invitation flows need the real API.
 
 ## Rooms, invitations and realtime
 
@@ -42,6 +42,14 @@ See the [authentication milestone](../docs/Backend_Authentication_Milestone.md),
 
 ## Random matchmaking
 
+**Rated extension:** API mode now enables Rated/Casual selection and `/leaderboard`. Server-provided preset mapping and game snapshots are the authority for pool/rating displays; see [the ratings milestone](../docs/Rated_Matchmaking_Elo_Leaderboards.md).
+
 In real API mode, Find Players/1v1 opens `/matchmaking`. The screen restores the account search from the API, supports all backend time-control presets, shows elapsed time and cancellation, and automatically enters the existing arena after both players confirm readiness. The session bridge owns personal events, recovery and navigation across routes; MSW demo mode keeps this capability unavailable. The Find Match action requires the backend options contract with `enabled: true`.
 
 See [the matchmaking milestone](../docs/Random_Matchmaking_Milestone.md) for the five-minute search/30-second arrival policy, API/event contracts, required backend migrations, feature flag and verification. Frontend layers live in `features/matchmaking/{services,realtime,queries,hooks,types}`; presentation composes them in `screens/matchmaking` and `providers/matchmaking-bridge.tsx`.
+
+## Ratings and leaderboard
+
+`features/ratings` owns Axios services and TanStack Query hooks/cache. Screens compose ratings with account summary, matchmaking and game history without sibling feature imports. Arena/replay show immutable start ratings and committed result deltas. `/leaderboard` has Bullet/Blitz/Rapid tabs, server-paginated rankings, personal placement/provisional state and rating history. Public ranks are never calculated in the browser. Profile/game revisions protect against late responses, and reconnect plus bounded reads recover missed invalidations. Global leaderboard refresh is limited to once per minute while mounted, plus manual refresh; moves never refresh it.
+
+Requires backend migration `202610280004_ratings` and `RATINGS_ENABLED=true`. MSW demo mode keeps ratings/leaderboards unavailable. Password recovery, audio, friend invitations, casual matchmaking, engine games, history/replay and temporary manual analysis remain available. Google authentication and other deferred features remain disabled.

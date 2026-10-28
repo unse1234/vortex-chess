@@ -114,10 +114,10 @@ export class GamesService implements OnModuleInit, OnApplicationBootstrap, OnMod
     });
   }
 
-  createRandomInTx(tx: Prisma.TransactionClient, firstId: string, secondId: string, initialMs: number, incrementMs: number) {
+  createRandomInTx(tx: Prisma.TransactionClient, firstId: string, secondId: string, initialMs: number, incrementMs: number, rated = false) {
     const firstWhite = randomInt(2) === 0;
     return this.repository.createInTx(tx, {
-      mode: 'RANDOM', whiteId: firstWhite ? firstId : secondId,
+      mode: 'RANDOM', rated, whiteId: firstWhite ? firstId : secondId,
       blackId: firstWhite ? secondId : firstId, initialMs, incrementMs,
       startedAt: this.clock.now(),
     });

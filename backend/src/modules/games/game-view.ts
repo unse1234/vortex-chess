@@ -9,6 +9,7 @@ import {
 } from './services/game-state';
 import { timeControlOf, type TimeControl } from '../rooms/time-controls';
 import type { PlayerProfile } from '../users/users.service';
+import { casualRating, type GameRatingView } from '../ratings/rating-view';
 
 export type GameStatusView =
   | { phase: 'in-progress'; turn: Color }
@@ -51,6 +52,7 @@ export type GameViewerView = {
  * accepted move, never the accumulated history.
  */
 export type GameLiveView = {
+  rating: GameRatingView;
   id: string;
   revision: number;
   ply: number;
@@ -170,6 +172,7 @@ export function toLiveView(
   const { offerBy, declinedBy } = state.draw;
   return {
     id: state.id,
+    rating: state.rating ?? casualRating(),
     revision: state.revision,
     ply: state.ply,
     fen: state.fen,

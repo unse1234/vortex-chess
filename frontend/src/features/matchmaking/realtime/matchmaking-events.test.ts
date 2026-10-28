@@ -6,7 +6,7 @@ import type { MatchmakingStatus } from "@/features/matchmaking/types/matchmaking
 import type { RealtimeClient, RealtimeEvent } from "@/lib/realtime/realtime-contract";
 
 const snapshot = (revision: number, state: MatchmakingStatus["state"] = "searching"): MatchmakingStatus => ({
-  revision, state, searchId: "search", timeControl: { initialMs: 180000, incrementMs: 2000 },
+  revision, state, rated: false, ratingPool: null, searchId: "search", timeControl: { initialMs: 180000, incrementMs: 2000 },
   queuedAt: new Date(0).toISOString(), expiresAt: new Date(300000).toISOString(), ready: false,
   gameId: state === "matched" ? "game" : null, reason: null, serverTime: 0,
 });

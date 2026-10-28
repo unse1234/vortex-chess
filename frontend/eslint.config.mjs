@@ -2,7 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
-const features = ["auth", "games", "invitations", "lobby", "matchmaking", "notifications", "rooms", "social"];
+const features = ["auth", "games", "invitations", "lobby", "matchmaking", "notifications", "ratings", "rooms", "social"];
 
 const noRelativeParentImports = {
   group: ["../*"],

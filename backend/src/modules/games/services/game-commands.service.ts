@@ -501,6 +501,13 @@ export class GameCommandsService {
       });
     this.scheduleTimeout(runtime);
     await this.broadcast(runtime, change.move?.record ?? null);
+    if (change.next.status === 'finished' && change.next.rating?.rated && change.next.rating.changes) {
+      for (const player of Object.values(change.next.players)) {
+        if (player.kind === 'human') this.publisher.toUser(player.id, 'ratings.updated', {
+          gameId: change.next.id, pool: change.next.rating.pool,
+        });
+      }
+    }
     for (const listener of this.listeners) {
       try {
         listener(runtime);

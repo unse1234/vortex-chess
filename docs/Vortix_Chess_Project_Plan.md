@@ -1,5 +1,7 @@
 # Vortix Chess — Consolidated Product and Implementation Plan
 
+> **Rated matchmaking milestone (28 October 2026):** Rated random human games, independent Bullet/Blitz/Rapid `elo-v1` profiles, atomic settlement and paginated competition-rank leaderboards are implemented. This supersedes earlier ratings/leaderboard exclusions below. Password recovery is also implemented; Google authentication, tournaments, XP, seasons and other deferred features remain disabled. See [policy, architecture, deployment and verification](Rated_Matchmaking_Elo_Leaderboards.md).
+
 > **Random matchmaking milestone (28 October 2026):** Casual, unrated random human matching is implemented end to end with exact time-control compatibility, durable account-scoped searches, bounded automatic readiness, shared game admission, authenticated personal events, refresh/restart recovery and the existing PvP arena. This supersedes earlier Coming Soon/no-route exclusions of random matchmaking only. Ratings, rankings, engine fallback, public browsing and other deferred features remain unavailable. See [behavior, API contracts, migrations, verification and limits](Random_Matchmaking_Milestone.md).
 
 

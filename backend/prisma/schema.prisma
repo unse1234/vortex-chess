@@ -27,6 +27,9 @@ model User {
   gameCommands GameCommand[]
   matchmaking MatchmakingSearch?
   passwordResetTokens PasswordResetToken[]
+  ratings PlayerRating[]
+  ratingChanges RatingChange[] @relation("RatingPlayer")
+  opponentRatingChanges RatingChange[] @relation("RatingOpponent")
 }
 model AuthSession {
   id String @id @default(uuid()) @db.Uuid
@@ -249,6 +252,9 @@ model Game {
   roomId String? @unique @db.Uuid
   room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
   mode GameMode @default(FRIENDS)
+  rated Boolean @default(false)
+  ratingPool RatingPool?
+  ratingPolicyVersion String? @db.VarChar(24)
   status GameStatus @default(ACTIVE)
   /// Increases on every persisted change (moves, draw offers, results, clock resumption).
   revision Int @default(1)
@@ -277,6 +283,7 @@ model Game {
   moves GameMove[]
   commands GameCommand[]
   matchmakingAssignments MatchmakingSearch[]
+  ratingSettlement RatingSettlement?
   @@index([status])
   @@index([status, endedAt(sort: Desc), id(sort: Desc)])
   @@index([mode, status])
@@ -289,6 +296,8 @@ model MatchmakingSearch {
   searchId String @default(uuid()) @db.Uuid
   revision Int @default(1)
   state String @default("idle") @db.VarChar(16)
+  rated Boolean @default(false)
+  ratingPool RatingPool?
   initialMs Int @default(600000)
   incrementMs Int @default(0)
   queuedAt DateTime @default(now()) @db.Timestamptz(3)
@@ -312,8 +321,11 @@ model GameParticipant {
   user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
   /// Name the engine service reported when the game was created. Null for players.
   engineName String? @db.VarChar(64)
+  ratingBefore Int?
+  ratingGamesBefore Int?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   moves GameMove[]
+  ratingChange RatingChange?
   @@id([gameId, color])
   @@unique([gameId, userId])
   @@index([userId, createdAt(sort: Desc)])
@@ -357,4 +369,60 @@ model GameCommand {
   revision Int
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   @@id([gameId, actorId, requestId])
+}
+
+enum RatingPool {
+  bullet
+  blitz
+  rapid
+}
+
+model PlayerRating {
+  userId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pool RatingPool
+  rating Int @default(1200)
+  peakRating Int @default(1200)
+  games Int @default(0)
+  wins Int @default(0)
+  draws Int @default(0)
+  losses Int @default(0)
+  revision Int @default(0)
+  /// Reserved for account moderation; no player-writable endpoint.
+  leaderboardEligible Boolean @default(true)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  @@id([userId, pool])
+  @@index([pool, leaderboardEligible, rating(sort: Desc), userId])
+}
+
+model RatingSettlement {
+  gameId String @id @db.Uuid
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  policyVersion String @db.VarChar(24)
+  kFactor Int
+  ratingFloor Int
+  expectedWhite Float
+  scoreWhite Float
+  roundedDeltaWhite Int
+  appliedDeltaWhite Int
+  settledAt DateTime @default(now()) @db.Timestamptz(3)
+  changes RatingChange[]
+}
+
+model RatingChange {
+  gameId String @db.Uuid
+  settlement RatingSettlement @relation(fields: [gameId], references: [gameId], onDelete: Cascade)
+  userId String @db.Uuid
+  user User @relation("RatingPlayer", fields: [userId], references: [id], onDelete: Restrict)
+  participant GameParticipant @relation(fields: [gameId, userId], references: [gameId, userId], onDelete: Cascade)
+  opponentId String @db.Uuid
+  opponent User @relation("RatingOpponent", fields: [opponentId], references: [id], onDelete: Restrict)
+  pool RatingPool
+  before Int
+  delta Int
+  after Int
+  score Float
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  @@id([gameId, userId])
+  @@index([userId, pool, createdAt(sort: Desc), gameId(sort: Desc)])
 }

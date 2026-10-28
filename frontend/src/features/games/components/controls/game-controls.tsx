@@ -121,6 +121,7 @@ export function GameControls() {
           onOpenChange={(open) => setResultDismissed(!open)}
           result={game.status.result}
           viewer={viewer}
+          rating={game.rating}
         />
       ) : null}
     </>

@@ -88,6 +88,8 @@ The integration suite builds Nest code first to preserve constructor decorator m
 
 ## Random matchmaking
 
+**Rated extension:** Rated/Casual selection, `elo-v1` settlement and pool leaderboards are delivered by migration `202610280004_ratings`. The original casual behavior below remains available. See [ratings, atomic settlement and deployment](../docs/Rated_Matchmaking_Elo_Leaderboards.md).
+
 Random human games are available in API mode after applying the two `20261028` migrations. `MATCHMAKING_ENABLED=true` (default) enables queue admission and automatic readiness; setting it to `false` preserves status/cancel recovery and existing games. All presets match on both base time and increment. Searches expire after five minutes; paired players have 30 seconds to confirm automatically before any game or clock starts. Friend and engine starts share database admission with matchmaking and reject overlapping searches/games.
 
 See [the matchmaking milestone](../docs/Random_Matchmaking_Milestone.md) for HTTP/event contracts, reconnect/disconnect policy, transaction/worker guarantees, deployment requirements and measured verification. `test/matchmaking.e2e-spec.ts` exercises real PostgreSQL, authenticated HTTP and Socket.IO, concurrency/races, two independent backend instances, restart recovery and a complete checkmate game. Run it with `TEST_DATABASE_URL` set to a dedicated migrated database using the normal `npm.cmd run test:e2e` workflow.
@@ -95,3 +97,9 @@ See [the matchmaking milestone](../docs/Random_Matchmaking_Milestone.md) for HTT
 ## Password recovery
 
 `POST /api/auth/forgot-password`, `POST /api/auth/reset-password/status` and `POST /api/auth/reset-password` implement email-link recovery (migration `202610280003_password_reset`). Reset emails and the password-changed notice go through the existing `EmailJob` outbox, so `MAIL_TRANSPORT=smtp` must be configured for links to be delivered; with `disabled` they stay queued. A successful reset revokes every session of the account, which immediately invalidates refresh cookies and access tokens (each request checks the session row) and disconnects sockets. See [the password recovery milestone](../docs/Password_Recovery.md) for contracts, token policy, delivery and verification. `test/password-recovery.e2e-spec.ts` runs against real PostgreSQL with the normal `test:e2e` workflow.
+
+## Ratings and leaderboards
+
+`RATINGS_ENABLED=true` enables rated random human admission and rating/leaderboard reads. Initial 1200, K=32, floor 100 and ten placement games apply independently to Bullet, Blitz and Rapid. Exact preset mapping is returned by `/api/matchmaking/options`; classical controls stay casual. `MATCHMAKING_RATING_WINDOWS` defaults to `15:100,30:200,60:400`, then unrestricted after 60 seconds; both players' windows must allow pairing.
+
+Authenticated reads: `GET /api/ratings/me`, `GET /api/ratings/me/history`, `GET /api/leaderboard?pool=blitz`, `GET /api/leaderboard/me?pool=blitz`. The leaderboard defaults to 25 rows, max 100, and PostgreSQL computes global competition ranks before pagination. Official game finalization and both rating updates share one transaction; there is no rating/result write endpoint. Apply `npm run db:migrate` before deploying the new backend/frontend. Drain old backend writers before enabling rated admission. Friend, engine and historical games remain casual. `test/ratings.e2e-spec.ts` exercises actual PostgreSQL/HTTP/sockets, concurrency, injected transaction failures and recovery with the standard dedicated-database `test:e2e` workflow.

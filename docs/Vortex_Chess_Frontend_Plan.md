@@ -1,5 +1,7 @@
 # Vortex Chess — Frontend Architecture and Delivery Plan
 
+> **Rated matchmaking milestone (28 October 2026):** API mode enables Rated/Casual selection, independent pool rating summaries, immutable game-start ratings, committed result/history deltas and `/leaderboard` with server pagination, global competition rank and provisional states. This supersedes earlier ratings/leaderboard exclusions. Password recovery is implemented; Google authentication and other deferred capabilities remain disabled. See [contracts, reconciliation and verification](Rated_Matchmaking_Elo_Leaderboards.md).
+
 > **Random matchmaking milestone (28 October 2026):** Casual, unrated random human matching is implemented end to end with exact time-control compatibility, durable account-scoped searches, bounded automatic readiness, shared game admission, authenticated personal events, refresh/restart recovery and the existing PvP arena. This supersedes earlier Coming Soon/no-route exclusions of random matchmaking only. Ratings, rankings, engine fallback, public browsing and other deferred features remain unavailable. See [behavior, API contracts, migrations, verification and limits](Random_Matchmaking_Milestone.md).
 
 

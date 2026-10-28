@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { lockGameAdmission, assertGameEligible } from './game-admission';
+import { retryTransaction } from '../../../database/retry-transaction';
+import { RatingsService } from '../../ratings/ratings.service';
+import { ELO_V1 } from '../../ratings/rating-policy';
+import { casualRating } from '../../ratings/rating-view';
 import type {
   GameColor,
   GameCommandKind,
@@ -55,6 +59,7 @@ export type CommandRecord = {
 export type NewGame = {
   roomId?: string;
   mode?: 'FRIENDS' | 'RANDOM';
+  rated?: boolean;
   whiteId: string;
   blackId: string;
   initialMs: number;
@@ -84,16 +89,23 @@ export type LoadedGame = {
  */
 @Injectable()
 export class GameRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly ratings: RatingsService) {}
 
   /** Inside the room-start transaction, under the room lock. */
   async createInTx(tx: Prisma.TransactionClient, input: NewGame) {
     await lockGameAdmission(tx);
     await assertGameEligible(tx, [input.whiteId, input.blackId], input.mode === 'RANDOM');
+    if (input.rated && input.mode !== 'RANDOM') throw new Error('Only random human games can be rated');
+    const rating = input.rated
+      ? await this.ratings.snapshotInTx(tx, [input.whiteId, input.blackId], input.initialMs, input.incrementMs)
+      : null;
     const game = await tx.game.create({
       data: {
         roomId: input.roomId,
         mode: input.mode ?? 'FRIENDS',
+        rated: !!input.rated,
+        ratingPool: rating?.pool,
+        ratingPolicyVersion: rating?.policyVersion,
         initialFen: STANDARD_START_FEN,
         fen: STANDARD_START_FEN,
         initialMs: input.initialMs,
@@ -107,8 +119,12 @@ export class GameRepository {
     });
     await tx.gameParticipant.createMany({
       data: [
-        { gameId: game.id, color: 'WHITE', userId: input.whiteId },
-        { gameId: game.id, color: 'BLACK', userId: input.blackId },
+        { gameId: game.id, color: 'WHITE', userId: input.whiteId,
+          ratingBefore: rating?.profiles.find((p) => p.userId === input.whiteId)?.rating,
+          ratingGamesBefore: rating?.profiles.find((p) => p.userId === input.whiteId)?.games },
+        { gameId: game.id, color: 'BLACK', userId: input.blackId,
+          ratingBefore: rating?.profiles.find((p) => p.userId === input.blackId)?.rating,
+          ratingGamesBefore: rating?.profiles.find((p) => p.userId === input.blackId)?.games },
       ],
     });
     return game.id;
@@ -176,6 +192,8 @@ export class GameRepository {
             color: true,
             kind: true,
             engineName: true,
+            ratingBefore: true,
+            ratingGamesBefore: true,
             user: { select: { id: true, username: true } },
           },
         });
@@ -187,6 +205,17 @@ export class GameRepository {
           where: { gameId },
           select: { actorId: true, requestId: true, fingerprint: true, revision: true },
         });
+        const changes = game.rated ? await tx.ratingChange.findMany({ where: { gameId } }) : [];
+        const snapshot = (color: GameColor) => {
+          const p = participants.find((p) => p.color === color);
+          return p?.ratingBefore != null && p.ratingGamesBefore != null
+            ? { rating: p.ratingBefore, games: p.ratingGamesBefore, provisional: p.ratingGamesBefore < ELO_V1.provisionalGames } : null;
+        };
+        const ratingChange = (color: GameColor) => {
+          const p = participants.find((p) => p.color === color);
+          const c = changes.find((c) => c.userId === p?.user?.id);
+          return c ? { before: c.before, delta: c.delta, after: c.after, score: c.score } : null;
+        };
         const seat = (color: 'WHITE' | 'BLACK'): PlayerInfo | null => {
           const p = participants.find((candidate) => candidate.color === color);
           if (p?.kind === 'ENGINE' && p.engineName)
@@ -210,6 +239,9 @@ export class GameRepository {
             id: game.id,
             roomId: game.roomId,
             mode: game.mode === 'ENGINE' ? 'engine' : game.mode === 'RANDOM' ? 'random' : 'friends',
+            rating: game.rated ? { rated: true, pool: game.ratingPool, policyVersion: game.ratingPolicyVersion,
+              snapshots: { w: snapshot('WHITE'), b: snapshot('BLACK') },
+              changes: changes.length ? { w: ratingChange('WHITE'), b: ratingChange('BLACK') } : null } : casualRating(),
             players: { w: white, b: black },
             initialFen: game.initialFen,
             initialMs: game.initialMs,
@@ -289,10 +321,13 @@ export class GameRepository {
     next: GameState;
     move: MoveRecord;
     command: CommandRecord | null;
-  }) {
+  }, tx?: Prisma.TransactionClient): Promise<boolean> {
+    if (!tx && input.next.status === 'finished')
+      return this.commitFinal(input.next, (tx) => this.commitMove(input, tx));
+    const db = tx ?? this.prisma;
     const { next, move, command } = input;
     const g = this.gameColumns(next);
-    const rows = await this.prisma.$queryRaw<{ updated: number }[]>`
+    const rows = await db.$queryRaw<{ updated: number }[]>`
       WITH g AS (
         UPDATE "Game" SET
           "fen" = ${g.fen}::varchar, "ply" = ${g.ply}::int, "revision" = ${g.revision}::int,
@@ -330,10 +365,13 @@ export class GameRepository {
     expectedRevision: number;
     next: GameState;
     command: CommandRecord | null;
-  }) {
+  }, tx?: Prisma.TransactionClient): Promise<boolean> {
+    if (!tx && input.next.status === 'finished')
+      return this.commitFinal(input.next, (tx) => this.commitChange(input, tx));
+    const db = tx ?? this.prisma;
     const { next, command } = input;
     const g = this.gameColumns(next);
-    const rows = await this.prisma.$queryRaw<{ updated: number }[]>`
+    const rows = await db.$queryRaw<{ updated: number }[]>`
       WITH g AS (
         UPDATE "Game" SET
           "revision" = ${g.revision}::int,
@@ -353,6 +391,19 @@ export class GameRepository {
       )
       SELECT (SELECT count(*) FROM g)::int AS "updated"`;
     return rows[0]?.updated === 1;
+  }
+
+  /** The game claim, command/move, both profiles and audit records commit together. */
+  private async commitFinal(next: GameState, save: (tx: Prisma.TransactionClient) => Promise<boolean>) {
+    const result = await retryTransaction(() => this.prisma.$transaction(async (tx) => {
+      const saved = await save(tx);
+      if (!saved) return { saved, rating: null };
+      const rating = await this.ratings.settleInTx(tx, next.id);
+      return { saved, rating };
+    }, { maxWait: 10000, timeout: 10000 }));
+    // Only expose values once COMMIT has returned. The command pipeline publishes this next state.
+    if (result.rating) next.rating = result.rating;
+    return result.saved;
   }
 
   /**
