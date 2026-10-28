@@ -25,6 +25,7 @@ model User {
   gameSeats GameParticipant[]
   gameMoves GameMove[]
   gameCommands GameCommand[]
+  matchmaking MatchmakingSearch?
 }
 model AuthSession {
   id String @id @default(uuid()) @db.Uuid
@@ -195,6 +196,7 @@ enum GameResult {
 enum GameMode {
   FRIENDS
   ENGINE
+  RANDOM
 }
 enum ParticipantKind {
   PLAYER
@@ -255,9 +257,30 @@ model Game {
   participants GameParticipant[]
   moves GameMove[]
   commands GameCommand[]
+  matchmakingAssignments MatchmakingSearch[]
   @@index([status])
   @@index([status, endedAt(sort: Desc), id(sort: Desc)])
   @@index([mode, status])
+}
+
+/// One durable search/assignment per account. Revision survives new searches.
+model MatchmakingSearch {
+  userId String @id @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  searchId String @default(uuid()) @db.Uuid
+  revision Int @default(1)
+  state String @default("idle") @db.VarChar(16)
+  initialMs Int @default(600000)
+  incrementMs Int @default(0)
+  queuedAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @default(now()) @db.Timestamptz(3)
+  pairId String? @db.Uuid
+  ready Boolean @default(false)
+  gameId String? @db.Uuid
+  game Game? @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  reason String? @db.VarChar(32)
+  @@index([state, initialMs, incrementMs, queuedAt, userId])
+  @@index([pairId])
 }
 /// A seat: a registered account, or the engine service (never a fake user).
 model GameParticipant {
