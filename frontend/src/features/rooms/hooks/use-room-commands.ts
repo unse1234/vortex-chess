@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/http/api-error";
 import { roomKeys } from "@/features/rooms/queries/room.queries";
-import { reconcileRoom } from "@/features/rooms/realtime/room-events";
+import { reconcileRoom, roomWasStarted } from "@/features/rooms/realtime/room-events";
 import {
   cancelRoom,
   createRoom,
@@ -15,7 +15,7 @@ import {
 import type { RoomSettingsChange, RoomSnapshot } from "@/features/rooms/types/room.types";
 
 /** Room mutations. Each carries the revision the viewer acted on; responses merge by revision. */
-export function useRoomCommands(roomId: string) {
+export function useRoomCommands(roomId: string, onStarted?: (gameId: string) => void) {
   const queryClient = useQueryClient();
   const queryKey = roomKeys.detail(roomId);
   const apply = (room: RoomSnapshot) =>
@@ -39,7 +39,10 @@ export function useRoomCommands(roomId: string) {
   });
   const start = useMutation({
     mutationFn: ({ expectedRevision }: { expectedRevision: number }) => startRoom(roomId, expectedRevision),
-    onSuccess: apply,
+    onSuccess: (room) => {
+      if (roomWasStarted(queryClient.getQueryData<RoomSnapshot>(queryKey), room)) onStarted?.(room.gameId!);
+      apply(room);
+    },
     onError: refreshOnConflict,
   });
   const cancel = useMutation({

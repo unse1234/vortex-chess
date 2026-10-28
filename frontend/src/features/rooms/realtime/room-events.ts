@@ -4,6 +4,13 @@ export function roomChannel(roomId: string) {
   return `room:${roomId}`;
 }
 
+/** A committed transition, never an initial load or replayed room snapshot. */
+export function roomWasStarted(previous: RoomSnapshot | undefined, next: RoomSnapshot, now = Date.now()) {
+  return !!previous && previous.id === next.id && next.revision > previous.revision &&
+    (previous.status === "waiting" || previous.status === "ready") && next.status === "started" &&
+    next.gameId !== null && Math.abs(now - Date.parse(next.updatedAt)) < 5_000;
+}
+
 /** Events on an authorized room channel. Snapshots are complete and viewer-specific. */
 export type RoomRealtimeEvent =
   | { type: "room.updated"; payload: { room: RoomSnapshot } }

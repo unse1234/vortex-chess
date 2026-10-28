@@ -30,7 +30,7 @@ type Options = {
   /** True only while connected and synchronized. */
   canSend: boolean;
   /** Reconciles authoritative state from an acknowledgement into the cache. */
-  applyUpdate: (update: GameUpdate) => void;
+  applyUpdate: (update: GameUpdate, audible?: boolean) => void;
   /** Fetches a fresh snapshot when an answer can't be reconciled locally. */
   resync: () => void;
 };
@@ -55,7 +55,7 @@ export function useGameCommands({ gameId, realtime, revision, canSend, applyUpda
       setPending({ ...command, status: "sending" });
       try {
         const ack = await sendGameCommand(realtime, command.type, command.payload);
-        if (ack.game) applyUpdate(ack.game);
+        if (ack.game) applyUpdate(ack.game, ack.ok && !ack.duplicate);
         if (ack.ok) {
           setPending(null);
           return;

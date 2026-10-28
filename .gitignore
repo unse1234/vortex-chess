@@ -8,3 +8,6 @@
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Temporary local copy used for matchmaking QA (includes dependencies/builds)
+/.qa-matchmaking/

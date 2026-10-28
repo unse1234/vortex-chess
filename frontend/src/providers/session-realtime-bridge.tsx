@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useToast } from "@/components/feedback/toast";
 import { useInvitationsRealtime } from "@/features/invitations/hooks/use-invitations";
 import { useNotificationsRealtime } from "@/features/notifications/hooks/use-notifications";
 import { describeNotification } from "@/features/notifications/notification-text";
 import type { NotificationItem } from "@/features/notifications/types/notification.types";
+import { useAudio } from "@/features/audio/audio-provider";
+import { shouldSoundNotification } from "@/features/notifications/notification-audio";
+import { useRealtimeClient } from "@/lib/realtime/realtime-context";
 
 /**
  * Personal-channel coordination for the signed-in session, mounted once
@@ -15,9 +18,28 @@ import type { NotificationItem } from "@/features/notifications/types/notificati
  */
 export function SessionRealtimeBridge() {
   const showToast = useToast();
+  const { playOnce } = useAudio();
+  const subscribedAt = useRef(Infinity);
+  const realtime = useRealtimeClient();
+  useEffect(() => {
+    subscribedAt.current = Date.now();
+    const unsubscribe = realtime?.onStatusChange((status) => {
+      subscribedAt.current = status === "connected" ? Date.now() : Infinity;
+    });
+    const visibility = () => {
+      subscribedAt.current = document.visibilityState === "visible" ? Date.now() : Infinity;
+    };
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      unsubscribe?.();
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [realtime]);
   const onNotification = useCallback(
     (notification: NotificationItem) => {
       const text = describeNotification(notification);
+      if (realtime?.getStatus() === "connected" && shouldSoundNotification(notification, subscribedAt.current))
+        playOnce("notification", `notification:${notification.id}`);
       showToast({
         key: notification.id,
         title: text.title,
@@ -25,7 +47,7 @@ export function SessionRealtimeBridge() {
         action: text.href ? { label: text.actionLabel, href: text.href } : undefined,
       });
     },
-    [showToast],
+    [showToast, playOnce, realtime],
   );
   useNotificationsRealtime(onNotification);
   useInvitationsRealtime();

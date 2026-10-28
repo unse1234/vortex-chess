@@ -54,7 +54,7 @@ export function AccountSummary() {
           <p className="flex items-center gap-1.5 text-[15px] font-bold text-fg sm:text-[17px]">
             <span className="truncate">{account.username}</span>
           </p>
-          <div className="mt-1 flex items-center gap-2.5 text-[12px] text-fg-muted sm:text-[13px]">
+          <div className="mt-1 hidden items-center gap-2.5 text-[12px] text-fg-muted sm:flex sm:text-[13px]">
             <span>Levels / XP</span>
             <ComingSoon feature="rewards" />
           </div>

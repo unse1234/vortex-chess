@@ -7,6 +7,7 @@ import { Avatar } from "@/components/display/avatar";
 import { useSessionQuery } from "@/features/auth/hooks/use-session-query";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { NotificationsPopover } from "@/features/notifications/components/notifications-popover";
+import { AudioSettings } from "@/features/audio/components/audio-settings";
 import { cn } from "@/utils/cn";
 
 export type LiveState = "live" | "polling" | "reconnecting";
@@ -36,6 +37,7 @@ export function RoomPageHeader({ live }: { live?: LiveState }) {
           </span>
         ) : null}
         <NotificationsPopover />
+        <AudioSettings />
         <SignedInAs />
       </div>
     </header>

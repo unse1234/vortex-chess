@@ -7,6 +7,7 @@ import { MockProvider } from "@/providers/mock-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { RealtimeProvider } from "@/providers/realtime-provider";
 import { SessionRealtimeBridge } from "@/providers/session-realtime-bridge";
+import { AudioProvider } from "@/features/audio/audio-provider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -14,10 +15,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <QueryProvider>
         <AuthSessionProvider>
           <RealtimeProvider>
-            <ToastProvider>
-              <SessionRealtimeBridge />
-              {children}
-            </ToastProvider>
+            <AudioProvider>
+              <ToastProvider>
+                <SessionRealtimeBridge />
+                {children}
+              </ToastProvider>
+            </AudioProvider>
           </RealtimeProvider>
         </AuthSessionProvider>
       </QueryProvider>

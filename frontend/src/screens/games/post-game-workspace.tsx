@@ -1,6 +1,7 @@
 "use client";
 import {
   useId,
+  useCallback,
   useLayoutEffect,
   useRef,
   useState,
@@ -28,6 +29,8 @@ import { PromotionDialog } from "@/features/games/components/board/promotion-dia
 import { GameResultDialog } from "@/features/games/components/dialogs/game-result-dialog";
 import { PlayerCard } from "@/features/games/components/players/player-card";
 import { useManualAnalysis } from "@/features/games/hooks/use-manual-analysis";
+import { useAudio } from "@/features/audio/audio-provider";
+import { selectMoveCue } from "@/features/games/audio/game-audio";
 import { useGameSession } from "@/features/games/providers/game-session-provider";
 import type { PromotionPiece, Square } from "@/features/games/types/game.types";
 import { useBoardFit } from "@/screens/games/use-board-fit";
@@ -42,7 +45,9 @@ export function PostGameWorkspace({
   announceResult: boolean;
 }) {
   const { game, orientation, flipBoard } = useGameSession();
-  const analysis = useManualAnalysis(game, manual);
+  const { play: playAudio } = useAudio();
+  const onPlayed = useCallback((move: { san: string }) => playAudio(selectMoveCue(move)), [playAudio]);
+  const analysis = useManualAnalysis(game, manual, onPlayed);
   const [resultOpen, setResultOpen] = useState(announceResult);
   const [selection, setSelection] = useState<{
     cursor: string;
@@ -78,6 +83,11 @@ export function PostGameWorkspace({
     setPromotion(null);
     setEntryError("");
     analysis.select(id);
+    if (id !== cursor) {
+      const ply = originalPly(id);
+      const move = ply === null ? tree[id] : ply > 0 ? game.moves[ply - 1] : null;
+      if (move) onPlayed(move);
+    }
   }
   const ply = originalPly(cursor);
   const interactive = manual && position !== null && !pending;

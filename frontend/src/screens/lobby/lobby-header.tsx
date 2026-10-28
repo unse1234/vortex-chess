@@ -10,6 +10,7 @@ import { routes } from "@/config/routes";
 import { AccountSummary } from "@/features/auth/components/account-summary";
 import { SignOutDialog } from "@/features/auth/components/sign-out-dialog";
 import { NotificationsPopover } from "@/features/notifications/components/notifications-popover";
+import { AudioSettings } from "@/features/audio/components/audio-settings";
 import { useApiLatency } from "@/hooks/use-api-latency";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useNavigateOrPreview } from "@/hooks/use-navigate-or-preview";
@@ -46,6 +47,7 @@ export function LobbyHeader() {
           onClick={openCommunity}
         />
         <NotificationsPopover />
+        <AudioSettings />
         <AppLink href={routes.settings} destinationLabel="Settings" className="flex flex-col items-center rounded-md px-1 text-fg-muted">
           <SettingsIcon className="text-[24px]" />
         </AppLink>

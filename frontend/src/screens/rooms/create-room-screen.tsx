@@ -25,6 +25,7 @@ import { useCreateRoom } from "@/features/rooms/hooks/use-room-commands";
 import { useRoomOptionsQuery } from "@/features/rooms/hooks/use-room-options-query";
 import type { ColorPreference } from "@/features/rooms/types/room.types";
 import { RoomPageHeader } from "@/screens/rooms/room-page-header";
+import { useGameStartAudio } from "@/screens/rooms/use-game-start-audio";
 
 type Opponent = "player" | "engine";
 
@@ -42,6 +43,7 @@ export function CreateRoomScreen({ initialRecipient, opponent = "player" }: { in
   const invite = useSendInvitation();
   const engineMode = opponent === "engine" && features.enginePlay.available;
   const createEngineGame = useCreateEngineGame();
+  const onStarted = useGameStartAudio();
   const [presetId, setPresetId] = useState<string | null>(null);
   const [color, setColor] = useState<ColorPreference>("random");
   const [recipient, setRecipient] = useState(initialRecipient);
@@ -57,6 +59,7 @@ export function CreateRoomScreen({ initialRecipient, opponent = "player" }: { in
       timeControl: { initialMs: preset.initialMs, incrementMs: preset.incrementMs },
       colorPreference: color,
     });
+    onStarted(game.id);
     router.push(routes.game(game.id));
   }
 

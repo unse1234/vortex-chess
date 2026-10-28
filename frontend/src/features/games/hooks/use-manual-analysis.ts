@@ -19,7 +19,7 @@ import type {
 import type { GameSnapshot } from "@/features/games/types/game.types";
 
 /** Mounted-workspace state only. No Query entry, storage or canonical-game writes. */
-export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
+export function useManualAnalysis(game: GameSnapshot, enabled: boolean, onPlayed?: (move: { san: string }) => void) {
   const [tree, setTree] = useState<VariationTree>({});
   const [preferred, setPreferred] = useState<Record<string, string>>({});
   const [cursor, setCursor] = useState(mainlineId(game.ply));
@@ -127,6 +127,9 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
     const existing = existingChild(game, tree, cursor, uci);
     if (existing) {
       select(existing);
+      const ply = originalPly(existing);
+      const move = ply === null ? tree[existing] : game.moves[ply - 1];
+      if (move) onPlayed?.(move);
       return true;
     }
     if (Object.keys(tree).length >= 512 || input.path.length >= 128) {
@@ -157,6 +160,8 @@ export function useManualAnalysis(game: GameSnapshot, enabled: boolean) {
         setPreferred((current) => ({ ...current, [cursor]: id }));
         setValidated({ cursor: id, position });
         setCursor(id);
+        const move = position.moves.at(-1);
+        if (move) onPlayed?.(move);
       } catch (failure) {
         if (request.current())
           setError(

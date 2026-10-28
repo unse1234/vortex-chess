@@ -86,7 +86,13 @@ export function useGameSession(): ReadySession {
  * updates and command acknowledgements all reconcile into it by revision.
  * Mount it with `key={gameId}` so that local state resets when the game changes.
  */
-export function GameSessionProvider({ gameId, children }: { gameId: string; children: ReactNode }) {
+type SessionEvents = {
+  onSynchronization: (snapshot: GameSnapshot) => void;
+  onLiveUpdate: (current: GameSnapshot, update: GameUpdate, audible: boolean) => void;
+  onLivePause: () => void;
+};
+
+export function GameSessionProvider({ gameId, children, events }: { gameId: string; children: ReactNode; events?: SessionEvents }) {
   const queryClient = useQueryClient();
   const realtime = useRealtimeClient();
   const realtimeStatus = useRealtimeStatus(realtime);
@@ -101,7 +107,10 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
   /** Highest revision any event has shown us; the cache must reach it before moves resume. */
   const highestSeen = useRef(0);
 
-  const resync = useCallback(() => setNeedsResync(true), []);
+  const resync = useCallback(() => {
+    events?.onLivePause();
+    setNeedsResync(true);
+  }, [events]);
 
   const applySnapshot = useCallback(
     (snapshot: GameSnapshot) => {
@@ -110,20 +119,26 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
       queryClient.setQueryData<GameSnapshot>(queryKey, (current) =>
         stampSnapshotReceived(reconcileGameSnapshot(current, snapshot)),
       );
+      const current = queryClient.getQueryData<GameSnapshot>(queryKey);
+      if (current) events?.onSynchronization(current);
     },
-    [gameId, queryClient, queryKey],
+    [gameId, queryClient, queryKey, events],
   );
 
   const applyUpdate = useCallback(
-    (update: GameUpdate) => {
+    (update: GameUpdate, audible = true) => {
       // A late payload for a game we've navigated away from is ignored.
       if (update.id !== gameId) return;
       highestSeen.current = Math.max(highestSeen.current, update.revision);
-      const result = applyGameUpdate(queryClient.getQueryData<GameSnapshot>(queryKey), update);
-      if (result.kind === "applied") queryClient.setQueryData(queryKey, stampSnapshotReceived(result.game));
+      const current = queryClient.getQueryData<GameSnapshot>(queryKey);
+      const result = applyGameUpdate(current, update);
+      if (result.kind === "applied") {
+        queryClient.setQueryData(queryKey, stampSnapshotReceived(result.game));
+        if (current) events?.onLiveUpdate(current, update, audible && realtime?.getStatus() === "connected");
+      }
       else if (result.kind === "gap") resync();
     },
-    [gameId, queryClient, queryKey, resync],
+    [gameId, queryClient, queryKey, resync, realtime, events],
   );
 
   // Resynchronization: fetch until the cache is at least as new as anything observed.
@@ -135,7 +150,10 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
       await refetch();
       if (cancelled) return;
       const cached = queryClient.getQueryData<GameSnapshot>(queryKey);
-      if (cached && cached.revision >= highestSeen.current) setNeedsResync(false);
+      if (cached && cached.revision >= highestSeen.current) {
+        events?.onSynchronization(cached);
+        setNeedsResync(false);
+      }
       else timer = setTimeout(() => void attempt(), RESYNC_RETRY_MS);
     };
     void attempt();
@@ -143,7 +161,7 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [needsResync, refetch, queryClient, queryKey]);
+  }, [needsResync, refetch, queryClient, queryKey, events]);
 
   useEffect(() => {
     if (!realtime) return;
@@ -187,14 +205,16 @@ export function GameSessionProvider({ gameId, children }: { gameId: string; chil
     // Events may have been missed while disconnected; every reconnect resynchronizes.
     let previous = realtime.getStatus();
     const unsubscribeStatus = realtime.onStatusChange((status) => {
+      if (status !== "connected") events?.onLivePause();
       if (status === "connected" && previous === "reconnecting") resync();
       previous = status;
     });
     return () => {
       unsubscribeEvents();
       unsubscribeStatus();
+      events?.onLivePause();
     };
-  }, [realtime, gameId, queryClient, queryKey, applySnapshot, applyUpdate, resync]);
+  }, [realtime, gameId, queryClient, queryKey, applySnapshot, applyUpdate, resync, events]);
 
   const connection: GameConnection = !hasTransport
     ? "polling"

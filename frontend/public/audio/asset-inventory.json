@@ -1,0 +1,110 @@
+[
+  {
+    "original": "capture.mp3",
+    "file": "game/capture.mp3",
+    "sha256": "8e97f620589f6296acec0f020b577cf42aa96ea83893c84f629992db7434c7c1",
+    "bytes": 5084,
+    "durationSeconds": 0.285,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "castle.mp3",
+    "file": "game/castle.mp3",
+    "sha256": "d424a31f7860387b4797f395eca65a03b0dda8c815ab7a4966c2854fc7eeed33",
+    "bytes": 4891,
+    "durationSeconds": 0.206,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "game-end.mp3",
+    "file": "game/game-end.mp3",
+    "sha256": "25cb21de7149efedcae6bb17de0e19660b49ad26ce06d0a62aefc45f841d8f89",
+    "bytes": 4197,
+    "durationSeconds": 0.219,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "game-start.mp3",
+    "file": "game/game-start.mp3",
+    "sha256": "4d1e4111e340ea51022688f21b5e769a0aeb938d831a5e9d3c3d99383b40f438",
+    "bytes": 4223,
+    "durationSeconds": 0.212,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "illegal.mp3",
+    "file": "game/illegal-move.mp3",
+    "sha256": "93bb7868cdd8cb62e7d18255ccf6daa1b21ec869a6ac6870d15e9b9bca8ea481",
+    "bytes": 5540,
+    "durationSeconds": 0.169,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "move-check.mp3",
+    "file": "game/check.mp3",
+    "sha256": "c9a1324a5021a8480df74acff89b08ff8bebf8cdb157db120fb51d4224b6ffd4",
+    "bytes": 5783,
+    "durationSeconds": 0.256,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "move-opponent.mp3",
+    "file": "game/move-opponent.mp3",
+    "sha256": "bc1e8164bc641c6e20e85ca67eae483d3cdcbaaa8a88796587f50d4885aad669",
+    "bytes": 2714,
+    "durationSeconds": 0.117,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "move-self.mp3",
+    "file": "game/move-self.mp3",
+    "sha256": "ea619e9191cc071a26358b788801a46c454d9fa05f6a58a13569d2a7a3869c81",
+    "bytes": 2710,
+    "durationSeconds": 0.118,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "notify.mp3",
+    "file": "notifications/notification.mp3",
+    "sha256": "1986c0ed2211c984bd15676c6f6b0f10dd0f44233e2198169af964f2aeef2f4c",
+    "bytes": 2971,
+    "durationSeconds": 0.141,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "premove.mp3",
+    "file": "game/premove.mp3",
+    "sha256": "a00687c22a2ba75d4ea5169b331ab0af038dc28839d02628ac996891ab6d097d",
+    "bytes": 3237,
+    "durationSeconds": 0.152,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "promote.mp3",
+    "file": "game/promotion.mp3",
+    "sha256": "9c7e07f2a5d1a25e0af8d0d409574229bacede2da3c38d612b3f499668dcebcf",
+    "bytes": 4365,
+    "durationSeconds": 0.202,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  },
+  {
+    "original": "tenseconds.mp3",
+    "file": "game/ten-seconds.mp3",
+    "sha256": "3f6181139daf60a4f916d9ad9768792b72f8e33bfaf14eefc05c83ef3e050107",
+    "bytes": 14232,
+    "durationSeconds": 0.477,
+    "sampleRate": 48000,
+    "channels": "stereo"
+  }
+]

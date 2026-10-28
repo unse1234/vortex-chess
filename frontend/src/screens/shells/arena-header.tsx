@@ -11,6 +11,7 @@ import { useApiLatency } from "@/hooks/use-api-latency";
 import { AppLink } from "@/components/ui/app-link";
 import { useLeaveGuardRef } from "@/screens/shells/arena-leave-guard";
 import { cn } from "@/utils/cn";
+import { AudioSettings } from "@/features/audio/components/audio-settings";
 
 const navButton =
   "rounded-[6px] px-[15px] py-[8px] font-body text-[16px] transition-colors sm:text-[18px]";
@@ -59,9 +60,10 @@ export function ArenaHeader() {
         </nav>
       </div>
 
-      <div className="flex shrink-0 items-center gap-[15px]">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-[15px]">
+        <AudioSettings />
         <p
-          className="flex items-center gap-[7px] rounded-[4px] bg-[#171c26] px-[10px] py-[4px] font-mono text-[13px] font-bold tracking-[0.04em] text-auth-primary"
+          className="hidden items-center gap-[7px] rounded-[4px] bg-[#171c26] px-[10px] py-[4px] font-mono text-[13px] font-bold tracking-[0.04em] text-auth-primary sm:flex"
           aria-label={latency.data ? `Latency ${latency.data.latencyMs} milliseconds` : "Latency unknown"}
         >
           <span

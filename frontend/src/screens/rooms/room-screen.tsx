@@ -25,11 +25,13 @@ import type { RoomSnapshot } from "@/features/rooms/types/room.types";
 import { useNow } from "@/hooks/use-now";
 import { ApiError } from "@/lib/http/api-error";
 import { RoomPageHeader } from "@/screens/rooms/room-page-header";
+import { useGameStartAudio } from "@/screens/rooms/use-game-start-audio";
 import { formatTimeUntil } from "@/utils/format-time-until";
 
 /** Waiting room: seats, readiness, settings and invitations, kept live by the room channel. */
 export function RoomScreen({ roomId }: { roomId: string }) {
-  const { query, connection, readinessReset, dismissReadinessReset } = useRoomSession(roomId);
+  const onStarted = useGameStartAudio();
+  const { query, connection, readinessReset, dismissReadinessReset } = useRoomSession(roomId, onStarted);
   const room = query.data;
 
   return (
@@ -73,7 +75,8 @@ function WaitingRoom({
   const showToast = useToast();
   const now = useNow();
   const options = useRoomOptionsQuery();
-  const commands = useRoomCommands(room.id);
+  const onStarted = useGameStartAudio();
+  const commands = useRoomCommands(room.id, onStarted);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const { viewer, seats, settings } = room;
   const isHost = viewer.role === "host";
