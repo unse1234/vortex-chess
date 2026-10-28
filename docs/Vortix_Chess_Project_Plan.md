@@ -1,5 +1,8 @@
 # Vortix Chess — Consolidated Product and Implementation Plan
 
+> **Random matchmaking milestone (28 October 2026):** Casual, unrated random human matching is implemented end to end with exact time-control compatibility, durable account-scoped searches, bounded automatic readiness, shared game admission, authenticated personal events, refresh/restart recovery and the existing PvP arena. This supersedes earlier Coming Soon/no-route exclusions of random matchmaking only. Ratings, rankings, engine fallback, public browsing and other deferred features remain unavailable. See [behavior, API contracts, migrations, verification and limits](Random_Matchmaking_Milestone.md).
+
+
 > **Engine gameplay milestone (26 October 2026):** Player-versus-engine games are implemented against the teammate's deployed engine service. **Topology update: NestJS calls a FastAPI service over HTTP/JSON, which speaks UCI to the engine internally; this supersedes §17's instruction to spawn a UCI executable from NestJS.** The browser never calls the engine service. Engine turns are server-owned: clock-aware movetime, chess.js validation and the same atomic move/clock/result pipeline as player moves, one search per game identified by game and revision, stale replies discarded, bounded concurrency and retries, restart recovery, and an explicit engine-failure abort outcome (no winner, no draw). See [contracts, configuration, failure policy and measured latency](Engine_Gameplay_Milestone.md). Evaluation, hints, accuracy and automated review remain unavailable.
 
 > **History/replay/manual-analysis scope update (26 October 2026):** Participant-only backend-paginated history, original replay and temporary manual variations for finished games are implemented. This explicitly supersedes earlier exclusions of all branching and dedicated analysis routes. Active-game review remains read-only. Engine play, evaluation, hints, accuracy and automated review remain unavailable. See [contracts, state ownership and verification](History_Replay_Analysis_Milestone.md).
@@ -15,7 +18,7 @@
 
 V1 includes session handling/sign out, private player invitations by username or email, accept/decline and invitation notifications/toasts, teammate-engine gameplay, supported room/time/color settings, board/clocks/moves/promotion/draw/resign/results, independent earlier-move review with Back to Live, history and completed-game replay. Password visibility, board orientation and navigation remain supporting controls. Preserve existing service/mock-backed screens; scope availability does not imply that every V1 flow is already implemented.
 
-Everything else is **Coming Soon**: random matching, tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, engine evaluation/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
+Everything else is **Coming Soon**: tournaments/leaderboards, ratings/ranks, XP/rewards/seasons, 2v2/public rooms/variants, voice/general chat, advanced friend management, engine evaluation/hints/accuracy/statistics, and existing deferred profile/settings/preferences. Engine move generation remains V1; engine evaluation does not. Do not add UI or routes just to advertise deferred features.
 
 The frontend's typed scope map is `frontend/src/config/capabilities.ts` (`features`). Shared Coming Soon presentation lives in `components/display/`; route availability and existing deferred destinations live in `config/routes.ts`. Deferred controls use native disabled elements without handlers or hrefs. Deferred panels mount static unavailable presentations, avoiding queries and subscriptions. Existing deferred routes render the same unavailable screen on direct access. Keep the implemented room/history destinations accessible.
 
@@ -61,7 +64,7 @@ Initial friend matches are proposed as casual/unrated. Rating/Elo progression is
 
 The visual layout can retain unsupported features, with an explicit Coming Soon badge and disabled behavior. Disabled controls must not respond to pointer or keyboard activation or navigate to unimplemented routes.
 
-Examples: random matchmaking/Find Players, tournaments, leaderboards, 2v2, public room browsing, voice/spatial audio, general chat, advanced social/friend management, fog of war, blindfold variants, third-party OAuth and advanced telemetry.
+Examples: tournaments, leaderboards, 2v2, public room browsing, voice/spatial audio, general chat, advanced social/friend management, fog of war, blindfold variants, third-party OAuth and advanced telemetry.
 
 Evaluation panels can retain their visual space with a Coming Soon/unavailable state until the final phase. Fixed Stockfish versions, fabricated latency/accuracy values, kernel anti-cheat claims, XP progression and rankings must not be presented as working features. Existing mock/demo values remain explicitly demo data.
 
@@ -289,7 +292,7 @@ Use a single Next.js app with feature-based modules. Adapt the existing launcher
 
 The invitation landing route has its own lightweight shell so its destination can be preserved before authentication. Accepting still requires the correct authenticated identity. These are nested shells under one root layout.
 
-Within each feature create only subfolders containing real code: components, hooks, services, queries, types, schemas and, where applicable, realtime/providers/constants. Do not scaffold deferred matchmaking, analysis or social modules merely for disabled menu entries.
+Within each feature create only subfolders containing real code: components, hooks, services, queries, types, schemas and, where applicable, realtime/providers/constants. Do not scaffold deferred analysis or social modules merely for disabled menu entries. Matchmaking is implemented by the 28 October milestone.
 
 | Boundary | Rule |
 | --- | --- |
@@ -598,7 +601,7 @@ Authorization, stable error codes and idempotency are part of each contract. The
 
 Notifications remain a panel. Draw, resign, promotion, invite picker and result remain dialogs/panels.
 
-No active V1 /matchmaking route is required. Find Players/random matching, leaderboards, tournaments, public lobbies and general social/settings destinations stay disabled until scoped. A 1v1 shortcut should open friend play rather than silently enabling random matchmaking.
+The `/matchmaking` route and Find Players/1v1 shortcut now open casual random matching, as delivered by the 28 October milestone. Leaderboards, tournaments, public lobbies and general social/settings destinations remain disabled.
 
 Define capabilities centrally and enforce server permissions as well as UI disabled state. Query parameters only prefill setup; they never grant game access or enable unsupported modes.
 

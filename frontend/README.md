@@ -38,3 +38,10 @@ npm run build
 ```
 
 See the [authentication milestone](../docs/Backend_Authentication_Milestone.md), [rooms/invitations milestone](../docs/Rooms_Invitations_Notifications_Milestone.md) and [OpenAPI contract](../backend/openapi.json).
+
+
+## Random matchmaking
+
+In real API mode, Find Players/1v1 opens `/matchmaking`. The screen restores the account search from the API, supports all backend time-control presets, shows elapsed time and cancellation, and automatically enters the existing arena after both players confirm readiness. The session bridge owns personal events, recovery and navigation across routes; MSW demo mode keeps this capability unavailable. The Find Match action requires the backend options contract with `enabled: true`.
+
+See [the matchmaking milestone](../docs/Random_Matchmaking_Milestone.md) for the five-minute search/30-second arrival policy, API/event contracts, required backend migrations, feature flag and verification. Frontend layers live in `features/matchmaking/{services,realtime,queries,hooks,types}`; presentation composes them in `screens/matchmaking` and `providers/matchmaking-bridge.tsx`.
