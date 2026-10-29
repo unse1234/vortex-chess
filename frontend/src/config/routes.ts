@@ -24,6 +24,8 @@ export const routes = {
   profile: "/profile",
   telemetry: "/telemetry",
   leaderboard: "/leaderboard",
+  friends: "/friends",
+  blockedAccounts: "/settings/blocked-accounts",
   /**
    * `invite` only prefills the recipient field and `opponent=engine` selects
    * the engine setup; neither grants anything.
@@ -56,6 +58,8 @@ const availableRoutePatterns: readonly RegExp[] = [
   /^\/profile$/,
   /^\/telemetry$/,
   /^\/leaderboard$/,
+  /^\/friends$/,
+  /^\/settings\/blocked-accounts$/,
   /^\/rooms\/new$/,
   /^\/rooms\/join\/[^/]+$/,
   /^\/rooms\/[^/]+$/,
@@ -95,6 +99,8 @@ export function toSafeInternalPath(
 export const deferredRoutes = {
   "/matchmaking": "matchmaking",
   "/leaderboard": "leaderboard",
+  "/friends": "friends",
+  "/settings/blocked-accounts": "socialManagement",
   "/telemetry": "telemetry",
   "/profile": "profile",
   "/settings": "settings",

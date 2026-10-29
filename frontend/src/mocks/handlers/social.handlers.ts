@@ -11,12 +11,12 @@ export const socialHandlers = [
     if (failure) return failure;
 
     const search = new URL(request.url).searchParams.get("search")?.trim().toLowerCase() ?? "";
-    const friends = getMockScenario() === "empty" ? [] : createFriends(Date.now());
+    const friends = getMockScenario() === "empty" ? [] : createFriends();
     const items = search
       ? friends.filter((friend) => friend.username.toLowerCase().includes(search))
       : friends;
 
-    return HttpResponse.json<FriendsResponse>({ items });
+    return HttpResponse.json<FriendsResponse>({ items, nextCursor: null, revision: 0 });
   }),
 
   http.get(apiPath("/social/conversations"), async () => {

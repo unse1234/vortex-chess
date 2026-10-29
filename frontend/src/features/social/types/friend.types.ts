@@ -1,11 +1,9 @@
 import type { UserSummary } from "@/types/user-summary.types";
 
-export type PresenceStatus = "online" | "in-game" | "in-lobby" | "offline";
+export type PresenceStatus = "ONLINE" | "OFFLINE";
 
 export type FriendPresence = {
   status: PresenceStatus;
-  /** When the friend was last connected; null while they are online. */
-  lastSeenAt: string | null;
 };
 
 export type Friend = UserSummary & {
@@ -14,4 +12,36 @@ export type Friend = UserSummary & {
 
 export type FriendsResponse = {
   items: Friend[];
+  nextCursor: string | null;
+  revision: number;
+};
+
+export type SocialPage<T> = {
+  items: T[];
+  nextCursor: string | null;
+  revision: number;
+};
+export type Relationship = {
+  state: "none" | "incoming" | "outgoing" | "friends" | "unavailable";
+  requestId: string | null;
+};
+export type PlayerSearchResult = UserSummary & { relationship: Relationship };
+export type FriendRequest = {
+  id: string;
+  sender: UserSummary;
+  recipient: UserSummary;
+  state: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED";
+  createdAt: string;
+  updatedAt: string;
+};
+export type BlockedAccount = UserSummary & { createdAt: string };
+export type SocialAction = {
+  action:
+    "send" | "remove" | "block" | "unblock" | "accept" | "decline" | "cancel";
+  id: string;
+};
+export type SocialOutcome = {
+  revision: number;
+  relationship: Relationship;
+  request?: FriendRequest;
 };

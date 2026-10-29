@@ -12,6 +12,8 @@ Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentic
 
 Rated random matchmaking, independent Bullet/Blitz/Rapid Elo and paginated leaderboards are implemented. See the [ratings milestone](docs/Rated_Matchmaking_Elo_Leaderboards.md) for policy, migrations, configuration and verification. Password recovery and [game audio](docs/Game_Audio.md) are also implemented; Google authentication remains disabled.
 
+Friends/social management is implemented: username discovery, requests, paginated friendships, private presence, casual challenges through existing invitations, and blocking across direct interactions and matchmaking. See the [social milestone](docs/Friends_Social_Management.md) for policy, API/events, migration, rollout and the single-instance presence requirement.
+
 Install dependencies separately from this directory:
 
 ```sh

@@ -14,7 +14,7 @@ export type NotificationInvitation = {
   viewer: { role: "sender" | "recipient" };
 };
 
-export type NotificationType = "invitation.received" | "invitation.accepted" | "invitation.declined";
+export type NotificationType = "invitation.received" | "invitation.accepted" | "invitation.declined" | "friend.request.received" | "friend.request.accepted";
 
 export type NotificationItem = {
   /** Stable across deliveries; duplicates are recognised by it. */
@@ -25,6 +25,7 @@ export type NotificationItem = {
   actor: UserSummary | null;
   invitation: NotificationInvitation | null;
   roomId: string | null;
+  friendRequest?: { id: string; state: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" } | null;
 };
 
 export type NotificationPage = {

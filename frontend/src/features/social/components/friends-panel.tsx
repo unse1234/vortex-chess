@@ -12,7 +12,9 @@ import { FriendRow } from "@/features/social/components/friend-row";
 import { useFriendSearch } from "@/features/social/hooks/use-friend-search";
 import { groupByPresence } from "@/features/social/presence";
 import type { Friend } from "@/features/social/types/friend.types";
-import { useNow } from "@/hooks/use-now";
+import Link from "next/link";
+import { routes } from "@/config/routes";
+import { Button } from "@/components/ui/button";
 
 type FriendsPanelProps = {
   onInviteFriend: (friend: Friend) => void;
@@ -27,7 +29,6 @@ export function FriendsPanel({
 }: FriendsPanelProps) {
   const hydrated = useHydrated();
   const { term, setTerm, search, query, isSearching } = useFriendSearch();
-  const now = useNow();
 
   return (
     <div className="flex flex-col gap-3">
@@ -51,7 +52,7 @@ export function FriendsPanel({
             onRetry={() => query.refetch()}
             retrying={query.isRefetching}
           />
-        ) : query.data.length === 0 ? (
+        ) : query.data.pages.every(page => page.items.length === 0) ? (
           search ? (
             <EmptyState
               icon={<SearchIcon />}
@@ -67,23 +68,22 @@ export function FriendsPanel({
           )
         ) : (
           <FriendGroups
-            friends={query.data}
-            now={now}
+            friends={query.data.pages.flatMap(page => page.items)}
             onInviteFriend={onInviteFriend}
           />
         )}
       </div>
+      {query.hasNextPage ? <Button size="sm" onClick={() => query.fetchNextPage()} disabled={query.isFetchingNextPage}>Load more friends</Button> : null}
+      <Link href={routes.friends} className="text-sm font-semibold text-accent hover:underline">Manage friends / Find players</Link>
     </div>
   );
 }
 
 function FriendGroups({
   friends,
-  now,
   onInviteFriend,
 }: {
   friends: Friend[];
-  now: number | null;
   onInviteFriend: (friend: Friend) => void;
 }) {
   const { online, offline } = groupByPresence(friends);
@@ -107,7 +107,6 @@ function FriendGroups({
                 <li key={friend.id}>
                   <FriendRow
                     friend={friend}
-                    now={now}
                     onInvite={onInviteFriend}
                   />
                 </li>

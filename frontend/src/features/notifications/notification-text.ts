@@ -8,6 +8,15 @@ export function describeNotification(notification: NotificationItem) {
   const invitation = notification.invitation;
   const game = invitation ? formatTimeControl(invitation.room.timeControl) : null;
   switch (notification.type) {
+    case "friend.request.received":
+      return {
+        title: `${actor} sent you a friend request`,
+        description: notification.friendRequest?.state === "PENDING" ? "Review it in Incoming Requests." : "This request is no longer pending.",
+        href: notification.friendRequest?.state === "PENDING" ? routes.friends : null,
+        actionLabel: "View requests",
+      };
+    case "friend.request.accepted":
+      return { title: `${actor} accepted your friend request`, description: undefined, href: routes.friends, actionLabel: "View friends" };
     case "invitation.received":
       return {
         title: `${actor} invited you to play`,

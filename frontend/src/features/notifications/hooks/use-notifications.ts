@@ -10,7 +10,6 @@ import {
   unreadCountQueryOptions,
 } from "@/features/notifications/queries/notification.queries";
 import {
-  hasNotification,
   insertNotification,
   markRead,
   patchInvitation,
@@ -81,9 +80,9 @@ export function useNotificationsRealtime(onNotification?: (notification: Notific
       const typed = event as unknown as NotificationRealtimeEvent;
       if (typed.type === "notification.created") {
         const { notification, unreadCount } = typed.payload;
-        const fresh =
-          !presented.has(notification.id) &&
-          !hasNotification(queryClient.getQueryData<Inbox>(notificationKeys.inbox()), notification.id);
+        // A concurrent authoritative inbox refresh may already include this
+        // just-created row. Presentation dedupes deliveries, not HTTP reads.
+        const fresh = !presented.has(notification.id);
         presented.add(notification.id);
         queryClient.setQueryData<Inbox>(notificationKeys.inbox(), (inbox) =>
           inbox ? insertNotification(inbox, notification) : inbox,

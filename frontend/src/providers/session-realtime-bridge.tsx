@@ -9,6 +9,11 @@ import type { NotificationItem } from "@/features/notifications/types/notificati
 import { useAudio } from "@/features/audio/audio-provider";
 import { shouldSoundNotification } from "@/features/notifications/notification-audio";
 import { useRealtimeClient } from "@/lib/realtime/realtime-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { features } from "@/config/capabilities";
+import { useSocialRealtime } from "@/features/social/hooks/use-social";
+import { notificationKeys } from "@/features/notifications/queries/notification.queries";
+import { presentNotificationOnce } from "@/features/notifications/services/notification-presentation";
 
 /**
  * Personal-channel coordination for the signed-in session, mounted once
@@ -21,6 +26,11 @@ export function SessionRealtimeBridge() {
   const { playOnce } = useAudio();
   const subscribedAt = useRef(Infinity);
   const realtime = useRealtimeClient();
+  const queryClient = useQueryClient();
+  const reloadNotifications = useCallback(() => {
+    void queryClient.cancelQueries({ queryKey: notificationKeys.all }).then(() => queryClient.invalidateQueries({ queryKey: notificationKeys.all }));
+  }, [queryClient]);
+  useSocialRealtime(features.friends.available, reloadNotifications);
   useEffect(() => {
     subscribedAt.current = Date.now();
     const unsubscribe = realtime?.onStatusChange((status) => {
@@ -37,14 +47,13 @@ export function SessionRealtimeBridge() {
   }, [realtime]);
   const onNotification = useCallback(
     (notification: NotificationItem) => {
-      const text = describeNotification(notification);
-      if (realtime?.getStatus() === "connected" && shouldSoundNotification(notification, subscribedAt.current))
-        playOnce("notification", `notification:${notification.id}`);
-      showToast({
-        key: notification.id,
-        title: text.title,
-        description: text.description,
-        action: text.href ? { label: text.actionLabel, href: text.href } : undefined,
+      if (!shouldSoundNotification(notification, subscribedAt.current)) return;
+      void presentNotificationOnce(notification.id, () => {
+        const text = describeNotification(notification);
+        if (realtime?.getStatus() === "connected") playOnce("notification", `notification:${notification.id}`);
+        showToast({ key: notification.id, title: text.title, description: text.description,
+          action: text.href ? { label: text.actionLabel, href: text.href } : undefined,
+        });
       });
     },
     [showToast, playOnce, realtime],

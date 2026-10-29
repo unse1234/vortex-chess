@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { friendsQueryOptions } from "@/features/social/queries/social.queries";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -11,7 +11,7 @@ const SEARCH_DEBOUNCE_MS = 250;
 export function useFriendSearch() {
   const [term, setTerm] = useState("");
   const search = useDebouncedValue(term.trim(), SEARCH_DEBOUNCE_MS);
-  const query = useQuery(friendsQueryOptions(search));
+  const query = useInfiniteQuery(friendsQueryOptions(search));
 
   return {
     term,
@@ -19,6 +19,6 @@ export function useFriendSearch() {
     search,
     query,
     /** True while the visible results don't match the typed term yet. */
-    isSearching: term.trim() !== search || query.isPlaceholderData,
+    isSearching: term.trim() !== search || query.isFetching,
   };
 }
