@@ -93,8 +93,11 @@ function validateRefs(value) {
 validateRefs(spec);
 const normalize = (p) => p.replace(/\{[^}]+\}|:[^/]+/g, ':id').replace(/\/$/, '');
 const sourceEndpoints = new Set();
+const realtimeNames = new Set();
 for (const name of walk('backend/src/modules').filter((p) => p.endsWith('.ts') && !p.endsWith('.spec.ts'))) {
   const code = read(name);
+  for (const match of code.matchAll(/['"]((?:room|game|invitation|notification|ratings|social|matchmaking|session|channel|connection)\.[a-z.]+)['"]/g))
+    realtimeNames.add(match[1]);
   const base = /@Controller\((?:'([^']*)')?\)/.exec(code);
   if (!base) continue;
   for (const match of code.matchAll(/@(Get|Post|Patch|Delete)\((?:'([^']*)')?\)/g)) {
@@ -114,6 +117,7 @@ for (const endpoint of sourceEndpoints) {
 }
 for (const endpoint of specEndpoints) check(sourceEndpoints.has(endpoint), `OpenAPI without controller: ${endpoint}`);
 for (const endpoint of docEndpoints) check(sourceEndpoints.has(endpoint), `Docs without controller: ${endpoint}`);
+for (const event of realtimeNames) check(read('docs/realtime.md').includes(`\`${event}\``), `Undocumented realtime name: ${event}`);
 const routes = walk('frontend/src/app').filter((p) => p.endsWith('/page.tsx'));
 const models = [...read('backend/prisma/schema.prisma').matchAll(/^model (\w+)/gm)].map((m) => m[1]);
 const migrations = walk('backend/prisma/migrations').filter((p) => p.endsWith('/migration.sql'));
@@ -136,7 +140,7 @@ for (const asset of assets) {
 
 console.log(JSON.stringify({ markdownFiles: current.length + historical.length, localLinks: links,
   featureUnits: rows.length, statuses: counts, httpOperations: sourceEndpoints.size,
-  openApiReferences: refs, frontendPages: routes.length, prismaModels: models.length,
+  openApiReferences: refs, realtimeNames: realtimeNames.size, frontendPages: routes.length, prismaModels: models.length,
   migrations: migrations.length, audioAssets: assets.length }, null, 2));
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
 else console.log('Documentation consistency checks passed. External URLs and runtime journeys were not tested.');

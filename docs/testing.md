@@ -92,6 +92,8 @@ Environment observed: Windows PowerShell, Node 24.12.0, npm11.21.1. Installed un
 
 TEST_DATABASE_URL and ENGINE_LIVE_URL were unset in the audit shell (checked as booleans without printing values). No dedicated isolated database was established, so database tests were not run; no production/shared database was used as a substitute. Builds were not rerun for this Markdown/example-only change. Commit-time hooks and final publication are recorded in the final report; the commands above are the independently executed validation evidence.
 
+The first documentation commit's pre-commit hook also passed both applications' lint/typecheck, including Prisma generation. Final publisher review reconciled server `session.ended` and `channel.closed` signals, and the documentation checker now verifies named realtime messages against source. Staged additions were reviewed for scope and common private-key/token patterns with zero matches; that pattern scan is a limited check, not a guarantee that arbitrary prose cannot contain sensitive data.
+
 This task did not configure/run DB integration, real SMTP delivery, engine-live/benchmark, manual browser or production deployment. No destructive setup/cleanup commands were executed. Existing local installs were reused. Runtime source was not changed; the sole configuration edit replaces the example engine address with an unset/commented placeholder.
 
 ## Keeping docs current

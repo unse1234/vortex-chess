@@ -47,6 +47,8 @@ The empty room above illustrates the envelope only; complete shapes are the corr
 | Logical channel | `type` | Payload / interpretation |
 | --- | --- | --- |
 | `user` | `connection.rejected` | `{code:"too_many_connections"}` before disconnect |
+| `user` | `session.ended` | `{}` before server disconnect of a revoked/expired session family; browser recovery is driven by disconnect/auth renewal |
+| resource channel | `channel.closed` | `{code:"forbidden"}` when viewer-specific publication finds lost access; server removes socket membership |
 | room | `room.updated` | `{room:RoomView}` complete revisioned viewer-specific room; includes gameId once started |
 | room | `room.presence` | `{roomId,userId,online}`; no revision change |
 | game | `game.snapshot` | `{game:GameSnapshotView}` complete initial state/moves/PGN, viewer permissions, presence/engine progress |
@@ -61,7 +63,9 @@ The empty room above illustrates the envelope only; complete shapes are the corr
 | `user` | `social.updated` | `{eventId:"social:<userId>:<revision>",revision}`; personal invalidation only |
 | `user` | `social.presence` | `{}`; friends refetch authorized snapshots; no subject identity/status leaked in delayed event |
 
-Types live in backend `room-view.ts`, `invitation-view.ts`, `notification-view.ts`, `game-view.ts`, `matchmaking.service.ts` and frontend feature `types/`/`realtime/`. `channel.error` / `channel.closed` in the browser contract are adapter-level subscription signals, not a durable backend event feed. There are no implemented chat, media/voice, typing or spectating server events.
+Types live in backend `room-view.ts`, `invitation-view.ts`, `notification-view.ts`, `game-view.ts`, `matchmaking.service.ts` and frontend feature `types/`/`realtime/`. `channel.error` is synthesized by the browser adapter for rejected/timed-out joins; `channel.closed` is a server signal when publication detects lost access. Neither is a durable event feed. There are no implemented chat, media/voice, typing or spectating server events.
+
+Notification payload `notification.type` has separate discriminants: `invitation.received`, `invitation.accepted`, `invitation.declined`, `friend.request.received` and `friend.request.accepted`. These are inbox entry types carried inside `notification.created`, not additional Socket.IO event names.
 
 ## Ordering, deduplication and recovery
 

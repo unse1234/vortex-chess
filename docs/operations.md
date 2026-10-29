@@ -87,6 +87,7 @@ There is no scheduled general purge for sessions/refresh tokens, inbox, room/inv
 | Static OpenAPI shared errors/strictness and social response specificity | Read [API reconciliation](api.md#openapi-reconciliation-notes); no nonexistent API inferred |
 | Channel snapshot capture precedes join | Post-join emit reduces race but does not guarantee atomic gap-free subscribe; no durable event replay/cursor |
 | Live events/read-count hints lack universal cross-operation revision | Authoritative HTTP reads recover; no exactly-once delivery or full global order claimed |
+| Notification read mutations lack inline failure feedback in the popover | Inbox load failures have Retry; failed mark-one/all-read actions do not currently render their mutation error |
 | Single game owner/startup resets all active turns | Multi-replica rolling deployment unsafe; restarts restore uncommitted thinking time |
 | Email/reset issuance and provider acceptance boundaries |202 not durable issuance/delivery proof; SMTP crash window can duplicate sends |
 | General retention, distributed limits, socket command limits, hosted CI/backup manifests absent | Operator/tooling work remains, not silently implemented by package scripts |
