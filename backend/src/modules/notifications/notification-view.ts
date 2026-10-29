@@ -9,6 +9,7 @@ import {
 export const notificationInclude = {
   actor: { select: { id: true, username: true } },
   invitation: { include: invitationInclude },
+  friendRequest: { select: { id: true, state: true } },
 } satisfies Prisma.NotificationInclude;
 export type NotificationWithRelations = Prisma.NotificationGetPayload<{
   include: typeof notificationInclude;
@@ -18,6 +19,8 @@ const types = {
   INVITATION_RECEIVED: 'invitation.received',
   INVITATION_ACCEPTED: 'invitation.accepted',
   INVITATION_DECLINED: 'invitation.declined',
+  FRIEND_REQUEST_RECEIVED: 'friend.request.received',
+  FRIEND_REQUEST_ACCEPTED: 'friend.request.accepted',
 } as const;
 
 export type NotificationView = {
@@ -30,6 +33,7 @@ export type NotificationView = {
   /** Current invitation state, as seen by the notification's owner. */
   invitation: InvitationView | null;
   roomId: string | null;
+  friendRequest: { id: string; state: string } | null;
 };
 
 export function toNotificationView(
@@ -46,5 +50,6 @@ export function toNotificationView(
       ? toInvitationView(notification.invitation, notification.recipientId, now)
       : null,
     roomId: notification.roomId,
+    friendRequest: notification.friendRequest,
   };
 }

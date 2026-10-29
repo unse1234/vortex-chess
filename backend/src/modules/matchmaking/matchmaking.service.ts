@@ -11,6 +11,7 @@ import type { Environment } from '../../config/environment';
 import { PrismaService } from '../../database/prisma.service';
 import type { MatchmakingSearch, Prisma } from '../../generated/prisma/client';
 import { retryTransaction } from '../../database/retry-transaction';
+import { interactionAllowed, lockInteractionPair } from '../social/interaction-policy';
 import { RatingsRepository } from '../ratings/ratings.repository';
 import { ELO_V1, poolForPreset } from '../ratings/rating-policy';
 import { GamesService } from '../games/games.service';
@@ -244,6 +245,14 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
         where: { pairId: row.pairId, state: 'confirming' },
       });
       if (seats.length !== 2 || !seats.every((seat) => seat.ready)) return;
+      await lockInteractionPair(tx, seats[0].userId, seats[1].userId);
+      if (!(await interactionAllowed(tx, seats[0].userId, seats[1].userId))) {
+        await tx.matchmakingSearch.updateMany({ where: { pairId: row.pairId }, data: {
+          ...idle, reason: 'opponent_unavailable', revision: { increment: 1 },
+        } });
+        for (const seat of seats) changed.add(seat.userId);
+        return;
+      }
       // Both durable claims and the single game commit together; cancel uses this same lock.
       const gameId = await this.games.createRandomInTx(
         tx,
@@ -360,10 +369,15 @@ export class MatchmakingService implements OnModuleInit, OnModuleDestroy {
           AND a."initialMs" = b."initialMs" AND a."incrementMs" = b."incrementMs"
           AND a."ratingPool" IS NOT DISTINCT FROM b."ratingPool"
           AND (NOT a.rated OR ABS(a.rating - b.rating) <= LEAST(a.max_difference, b.max_difference))
+          AND NOT EXISTS (SELECT 1 FROM "UserBlock" block WHERE
+            (block."blockerId" = a."userId" AND block."blockedId" = b."userId") OR
+            (block."blockerId" = b."userId" AND block."blockedId" = a."userId"))
           WHERE (${joiningUserId}::uuid IS NULL OR a."userId" = ${joiningUserId}::uuid)
           ORDER BY a."queuedAt", a."userId", b."queuedAt", b."userId" LIMIT 1`;
       const pair = pairs[0];
       if (!pair) return;
+      await lockInteractionPair(tx, pair.first, pair.second);
+      if (!(await interactionAllowed(tx, pair.first, pair.second))) continue;
       await tx.matchmakingSearch.updateMany({ where: { userId: { in: [pair.first, pair.second] } },
         data: { state: 'confirming', pairId: randomUUID(), ready: false,
           expiresAt: new Date(now.getTime() + ARRIVAL_TTL_MS), revision: { increment: 1 } } });

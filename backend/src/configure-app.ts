@@ -30,7 +30,7 @@ export function configureApp(app: NestExpressApplication) {
     origin: (origin, callback) =>
       callback(null, !!origin && origins.includes(origin)),
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Vortix-CSRF'],
     maxAge: 600,
   });

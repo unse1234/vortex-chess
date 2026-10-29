@@ -15,7 +15,7 @@ export function decodeCursor(cursor: string | undefined): Keyset | undefined {
   const createdAt = new Date(iso ?? '');
   if (
     Number.isNaN(createdAt.getTime()) ||
-    !/^[0-9a-f-]{36}$/.test(id ?? '')
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id ?? '')
   )
     throw new ApiException(400, 'invalid_cursor', 'The page cursor is invalid.');
   return { createdAt, id };

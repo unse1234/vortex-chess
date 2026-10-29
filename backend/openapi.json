@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Vortex Chess API",
-    "version": "1.5.0",
-    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; See docs/History_Replay_Analysis_Milestone.md. Player-versus-engine games are implemented: the backend alone calls the engine service over HTTP/JSON; engine moves use the same authoritative pipeline (docs/Engine_Gameplay_Milestone.md). Engine evaluation, hints and automated review remain unavailable. Rated random human matchmaking, elo-v1 settlement and paginated competition-rank leaderboards are implemented (docs/Rated_Matchmaking_Elo_Leaderboards.md). Historical, friend and engine games remain casual."
+    "version": "1.6.0",
+    "description": "Authentication (milestone 1) plus private rooms, invitations, notifications and Socket.IO realtime (milestone 2). Bearer access JWT in frontend memory; rotating HttpOnly refresh cookie for /auth/refresh only. All responses use Cache-Control: no-store. Realtime events are documented in docs/Rooms_Invitations_Notifications_Milestone.md (Socket.IO path /api/socket.io). No email address of another account ever appears in these payloads. Email ownership is not verified; invitations bind to account ids, and email is only a lookup key and the offline delivery address. Participant-only finished-game history and isolated, temporary manual analysis are implemented; See docs/History_Replay_Analysis_Milestone.md. Player-versus-engine games are implemented: the backend alone calls the engine service over HTTP/JSON; engine moves use the same authoritative pipeline (docs/Engine_Gameplay_Milestone.md). Engine evaluation, hints and automated review remain unavailable. Rated random human matchmaking, elo-v1 settlement and paginated competition-rank leaderboards are implemented (docs/Rated_Matchmaking_Elo_Leaderboards.md). Historical, friend and engine games remain casual. Friends/social management is implemented with durable requests, unique friendships, directional blocks, private friend presence, existing casual invitations and block-aware random pairing. See docs/Friends_Social_Management.md."
   },
   "servers": [
     {
@@ -3918,6 +3918,1194 @@
           }
         }
       }
+    },
+    "/users/search": {
+      "get": {
+        "operationId": "searchPlayers",
+        "summary": "Find registered players by normalized username prefix",
+        "description": "Authenticated safe public fields and viewer-specific relationship only. Excludes self and either-direction blocks. Never returns email, sessions, private activity or authentication data.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "Opaque keyset cursor; createdAt DESC then id DESC. Keep the same search/direction."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9_]*$",
+              "minLength": 2
+            },
+            "description": "Case-insensitive normalized username prefix. All filtering is on the backend.",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayersPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/friends": {
+      "get": {
+        "operationId": "listFriends",
+        "summary": "List accepted unblocked friends",
+        "description": "Friend-only ONLINE/OFFLINE status. No last-seen, activity or game links. One valid socket keeps an account online across tabs; bounded disconnect grace.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "Opaque keyset cursor; createdAt DESC then id DESC. Keep the same search/direction."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9_]*$"
+            },
+            "description": "Case-insensitive normalized username prefix. All filtering is on the backend."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/requests": {
+      "get": {
+        "operationId": "listFriendRequests",
+        "summary": "List the actor’s pending friend requests",
+        "description": "",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "Opaque keyset cursor; createdAt DESC then id DESC. Keep the same search/direction."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9_]*$"
+            },
+            "description": "Case-insensitive normalized username prefix. All filtering is on the backend."
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "incoming",
+                "outgoing"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendRequestsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "sendFriendRequest",
+        "summary": "Send or recover a pending friend request",
+        "description": "Same pending send returns its existing outgoing state without another notification. Opposite pending returns incoming; explicit acceptance required. Existing friendship returns friends. Configurable per-account rolling hourly cap and pair resend cooldown. No email.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/requests/{id}/accept": {
+      "post": {
+        "operationId": "acceptFriendRequest",
+        "summary": "accept a pending friend request",
+        "description": "Recipient only. Completed requests return their current state without changing it. Stale accepted requests never restore removed friendships. Acceptance and the durable notification commit atomically.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/requests/{id}/decline": {
+      "post": {
+        "operationId": "declineFriendRequest",
+        "summary": "decline a pending friend request",
+        "description": "Recipient only. Completed requests return their current state without changing it. Stale accepted requests never restore removed friendships. Acceptance and the durable notification commit atomically.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/requests/{id}/cancel": {
+      "post": {
+        "operationId": "cancelFriendRequest",
+        "summary": "cancel a pending friend request",
+        "description": "Sender only. Completed requests return their current state without changing it. Stale accepted requests never restore removed friendships. Acceptance and the durable notification commit atomically.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/friends/{id}": {
+      "delete": {
+        "operationId": "removeFriend",
+        "summary": "Remove both sides of the friendship",
+        "description": "id is the other user id. Revokes presence; does not block, change games or invalidate game invitations. Idempotent.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/blocks": {
+      "get": {
+        "operationId": "listOwnBlocks",
+        "summary": "List only accounts blocked by the actor",
+        "description": "",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 160
+            },
+            "description": "Opaque keyset cursor; createdAt DESC then id DESC. Keep the same search/direction."
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 20,
+              "pattern": "^[a-zA-Z0-9_]*$"
+            },
+            "description": "Case-insensitive normalized username prefix. All filtering is on the backend."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockedAccountsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "blockAccount",
+        "summary": "Restrict social interactions with an account",
+        "description": "Atomically removes friendship, cancels pending friend requests and direct game invitations, prevents challenges and future random pairing in both directions, and revokes presence. No block-specific notification. Committed games/results/ratings remain unchanged.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "userId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social/blocks/{id}": {
+      "delete": {
+        "operationId": "unblockAccount",
+        "summary": "Remove only the actor’s block",
+        "description": "id is the other user id. Does not restore relationships or invitations. Other restrictions may still apply. Idempotent; never removes another user’s block.",
+        "tags": [
+          "Social"
+        ],
+        "security": [
+          {
+            "accessToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authoritative current outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialOutcome"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or cursor; self interaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Action belongs to the other participant",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Private request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "interaction_unavailable; no block direction disclosed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit or resend cooldown; wait before retrying",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4568,7 +5756,9 @@
             "enum": [
               "invitation.received",
               "invitation.accepted",
-              "invitation.declined"
+              "invitation.declined",
+              "friend.request.received",
+              "friend.request.accepted"
             ]
           },
           "createdAt": {
@@ -4600,6 +5790,30 @@
           "roomId": {
             "type": "string",
             "format": "uuid",
+            "nullable": true
+          },
+          "friendRequest": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "ACCEPTED",
+                  "DECLINED",
+                  "CANCELLED"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "state"
+            ],
+            "additionalProperties": false,
             "nullable": true
           }
         }
@@ -6442,6 +7656,264 @@
             "format": "uuid"
           }
         }
+      },
+      "Relationship": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "incoming",
+              "outgoing",
+              "friends",
+              "unavailable"
+            ]
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "state",
+          "requestId"
+        ],
+        "additionalProperties": false
+      },
+      "FriendRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sender": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "DECLINED",
+              "CANCELLED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "sender",
+          "recipient",
+          "state",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SocialOutcome": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "relationship": {
+            "$ref": "#/components/schemas/Relationship"
+          },
+          "request": {
+            "$ref": "#/components/schemas/FriendRequest"
+          }
+        },
+        "required": [
+          "revision",
+          "relationship"
+        ],
+        "additionalProperties": false
+      },
+      "SocialFriend": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "presence": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "ONLINE",
+                      "OFFLINE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "presence"
+            ]
+          }
+        ]
+      },
+      "PlayerSearchResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "relationship": {
+                "$ref": "#/components/schemas/Relationship"
+              }
+            },
+            "required": [
+              "relationship"
+            ]
+          }
+        ]
+      },
+      "BlockedAccount": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlayerProfile"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "createdAt"
+            ]
+          }
+        ]
+      },
+      "FriendsPage": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/SocialFriend"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "revision",
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "FriendRequestsPage": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/FriendRequest"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "revision",
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "PlayersPage": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/PlayerSearchResult"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "revision",
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "BlockedAccountsPage": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/BlockedAccount"
+            }
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "revision",
+          "items",
+          "nextCursor"
+        ],
+        "additionalProperties": false
       }
     }
   },

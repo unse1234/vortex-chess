@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import type { NotificationType, Prisma } from '../../generated/prisma/client';
 import { RealtimePublisher } from '../realtime/realtime-publisher.service';
+import { canonicalPair, interactionAllowed } from '../social/interaction-policy';
 import {
   notificationInclude,
   toNotificationView,
@@ -33,8 +34,9 @@ export class NotificationsService {
       recipientId: string;
       actorId: string;
       type: NotificationType;
-      invitationId: string;
-      roomId: string;
+      invitationId?: string;
+      roomId?: string;
+      friendRequestId?: string;
       dedupeKey: string;
     },
   ) {
@@ -53,11 +55,16 @@ export class NotificationsService {
       where: { id: { in: ids } },
       include: notificationInclude,
     });
-    for (const row of rows)
+    for (const row of rows) {
+      if (row.actorId && !(await interactionAllowed(this.prisma, row.actorId, row.recipientId))) continue;
+      if (row.type === 'FRIEND_REQUEST_RECEIVED' && row.friendRequest?.state !== 'PENDING') continue;
+      if (row.type === 'FRIEND_REQUEST_ACCEPTED' && row.actorId &&
+        !(await this.prisma.friendship.findUnique({ where: { pairLow_pairHigh: canonicalPair(row.actorId, row.recipientId) }, select: { id: true } }))) continue;
       this.publisher.toUser(row.recipientId, 'notification.created', {
         notification: toNotificationView(row),
         unreadCount: await this.unreadCount(row.recipientId),
       });
+    }
   }
 
   async list(userId: string, input: { cursor?: string; limit: number }) {

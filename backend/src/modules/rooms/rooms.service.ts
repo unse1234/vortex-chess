@@ -14,6 +14,9 @@ import { Prisma } from '../../generated/prisma/client';
 import { GamesService } from '../games/games.service';
 import { InvitationsService } from '../invitations/invitations.service';
 import { PresenceService } from '../realtime/presence.service';
+import { retryTransaction } from '../../database/retry-transaction';
+import { lockGameAdmission } from '../games/services/game-admission';
+import { assertInteractionAllowed, lockInteractionPair } from '../social/interaction-policy';
 import { RealtimeChannels } from '../realtime/realtime-channels.service';
 import { RealtimePublisher } from '../realtime/realtime-publisher.service';
 import { roomChannel } from '../realtime/realtime.contracts';
@@ -257,7 +260,7 @@ export class RoomsService implements OnModuleInit, OnModuleDestroy {
         });
         return { room: updated, changed: true, invitationIds };
       },
-      { allowClosed: true },
+      { allowClosed: true, gameAdmission: true },
     );
     if (gameId) await this.games.activate(gameId);
     return view;
@@ -340,17 +343,28 @@ export class RoomsService implements OnModuleInit, OnModuleDestroy {
       room: RoomWithSeats,
       role: Role,
     ) => Promise<Mutation | DeferredFailure>,
-    options: { allowClosed?: boolean } = {},
+    options: { allowClosed?: boolean; gameAdmission?: boolean } = {},
   ) {
     await this.expireDue(roomId);
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await retryTransaction(() => this.prisma.$transaction(async (tx) => {
+      let pairedChallenger: string | null = null;
+      if (options.gameAdmission) {
+        await lockGameAdmission(tx);
+        const ref = await tx.room.findUnique({ where: { id: roomId }, select: { hostId: true, challengerId: true } });
+        pairedChallenger = ref?.challengerId ?? null;
+        if (ref?.challengerId) await lockInteractionPair(tx, ref.hostId, ref.challengerId);
+      }
       const room = await lockRoom(tx, roomId);
       const role = room && roomRole(room, userId);
       if (!room || !role) return new DeferredFailure(notFound());
+      if (options.gameAdmission && room.status !== 'STARTED') {
+        if (room.challengerId !== pairedChallenger) return new DeferredFailure(revisionConflict());
+        if (room.challengerId) await assertInteractionAllowed(tx, room.hostId, room.challengerId);
+      }
       if (!options.allowClosed && !isRoomOpen(room))
         return new DeferredFailure(closed(room));
       return apply(tx, room, role);
-    });
+    }));
     const mutation = unwrap(result);
     if (mutation.changed) {
       await publishRoom(this.publisher, this.presence, mutation.room);

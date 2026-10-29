@@ -14,6 +14,8 @@ import {
 } from '../../common/pagination/cursor';
 import type { Environment } from '../../config/environment';
 import { PrismaService } from '../../database/prisma.service';
+import { retryTransaction } from '../../database/retry-transaction';
+import { assertInteractionAllowed, interactionAllowed, lockInteractionPair } from '../social/interaction-policy';
 import { Prisma } from '../../generated/prisma/client';
 import type { InvitationStatus } from '../../generated/prisma/client';
 import { EmailOutboxService, type ClaimedEmailJob } from '../mail/email-outbox.service';
@@ -150,7 +152,9 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
 
     let result: Change & { invitation: InvitationWithRelations } | DeferredFailure;
     try {
-      result = await this.prisma.$transaction(async (tx) => {
+      result = await retryTransaction(() => this.prisma.$transaction(async (tx) => {
+        await lockInteractionPair(tx, senderId, recipient.id);
+        await assertInteractionAllowed(tx, senderId, recipient.id);
         // The room lock serializes every invitation write for this room.
         const locked = await lockRoom(tx, roomId);
         if (!locked) return new DeferredFailure(roomNotFound());
@@ -220,7 +224,7 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
           notificationIds: notificationId ? [notificationId] : [],
           emailQueued,
         };
-      });
+      }));
     } catch (e) {
       // Safety net: the partial unique index rejects a concurrent duplicate.
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')
@@ -297,8 +301,10 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
    */
   async accept(userId: string, invitationId: string) {
     const ref = await this.reference(userId, invitationId, 'recipient');
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Lock order (room, then invitation) matches cancellation paths.
+    const result = await retryTransaction(() => this.prisma.$transaction(async (tx) => {
+      await lockInteractionPair(tx, ref.senderId, ref.recipientId);
+      await assertInteractionAllowed(tx, ref.senderId, ref.recipientId);
+      // Lock order: pair, room, invitation.
       const room = await lockRoom(tx, ref.roomId);
       const invitation = await this.lockInvitation(tx, invitationId);
       if (!room || !invitation) return new DeferredFailure(invitationNotFound());
@@ -333,7 +339,7 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
         invitationIds: [invitationId],
         notificationIds: notificationId ? [notificationId] : [],
       };
-    });
+    }));
     const change = await this.settle(result);
     return toInvitationView(change.invitation, userId)!;
   }
@@ -395,6 +401,15 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
       select: { id: true },
     });
     return rows.map((row) => row.id);
+  }
+
+  /** Social owns the pair lock; Invitations owns invalidation of its records. */
+  async cancelPairInTx(tx: Prisma.TransactionClient, a: string, b: string) {
+    const rows = await tx.invitation.updateManyAndReturn({
+      where: { status: 'PENDING', OR: [{ senderId: a, recipientId: b }, { senderId: b, recipientId: a }] },
+      data: { status: 'CANCELLED' }, select: { id: true },
+    });
+    return rows.map(row => row.id);
   }
 
   /**
@@ -547,6 +562,8 @@ export class InvitationsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!invitation)
       return { action: 'skip', reason: 'invitation_missing' } as const;
+    if (!(await interactionAllowed(this.prisma, invitation.senderId, invitation.recipientId)))
+      return { action: 'skip', reason: 'interaction_unavailable' } as const;
     const status = effectiveInvitationStatus(invitation);
     if (status !== 'pending')
       return { action: 'skip', reason: `invitation_${status}` } as const;

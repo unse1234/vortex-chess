@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
 import { lockGameAdmission, assertGameEligible } from './game-admission';
+import { assertInteractionAllowed, lockInteractionPair } from '../../social/interaction-policy';
 import { retryTransaction } from '../../../database/retry-transaction';
 import { RatingsService } from '../../ratings/ratings.service';
 import { ELO_V1 } from '../../ratings/rating-policy';
@@ -94,6 +95,8 @@ export class GameRepository {
   /** Inside the room-start transaction, under the room lock. */
   async createInTx(tx: Prisma.TransactionClient, input: NewGame) {
     await lockGameAdmission(tx);
+    await lockInteractionPair(tx, input.whiteId, input.blackId);
+    await assertInteractionAllowed(tx, input.whiteId, input.blackId);
     await assertGameEligible(tx, [input.whiteId, input.blackId], input.mode === 'RANDOM');
     if (input.rated && input.mode !== 'RANDOM') throw new Error('Only random human games can be rated');
     const rating = input.rated

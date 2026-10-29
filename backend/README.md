@@ -4,6 +4,8 @@ NestJS 12 + TypeScript, PostgreSQL and Prisma 7. Implemented: configuration, per
 
 ## Local setup (PowerShell)
 
+Friends/social management is implemented in the [social milestone](../docs/Friends_Social_Management.md). Apply migration `202610290001_social` before deploying this backend. It adds requests, canonical friendships, directional blocks and durable friend notifications. Configure request limits/resend cooldown and disconnect grace in `.env.example`. Existing invitation and matchmaking paths share database interaction-policy locks. Presence/realtime delivery supports a single API instance; PostgreSQL relationship correctness is shared across instances.
+
 Use Node 24.15+ and PostgreSQL 18 (the migration also uses standard PostgreSQL features). Keep the installed NestJS major and the matching Prisma client/adapter/CLI versions in the lockfile.
 
 ```powershell

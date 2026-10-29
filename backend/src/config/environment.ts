@@ -29,6 +29,9 @@ const schema = z
     COOKIE_SECURE: flag.default(false),
     MATCHMAKING_ENABLED: flag.default(true),
     RATINGS_ENABLED: flag.default(true),
+    FRIEND_REQUEST_MAX_PER_HOUR: z.coerce.number().int().min(1).max(500).default(30),
+    FRIEND_REQUEST_COOLDOWN_SECONDS: z.coerce.number().int().min(0).max(86400).default(300),
+    PRESENCE_DISCONNECT_GRACE_MS: z.coerce.number().int().min(0).max(30000).default(3000),
     /** seconds:maximum-difference, strictly widening; unrestricted after the last bound. */
     MATCHMAKING_RATING_WINDOWS: z.string().regex(/^\d+:\d+(,\d+:\d+){0,9}$/)
       .default(DEFAULT_RATING_WINDOWS.map((window) => `${window.untilSeconds}:${window.difference}`).join(','))
