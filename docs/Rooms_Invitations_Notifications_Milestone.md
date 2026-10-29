@@ -1,5 +1,8 @@
 # Private rooms, invitations, notifications and presence milestone
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Updated: 22 October 2026. Follows the [authentication milestone](Backend_Authentication_Milestone.md).
 
 This milestone adds private two-seat rooms, invitations to registered accounts by username or email, a durable notification inbox, authenticated Socket.IO realtime with presence, and an outbox-driven offline invitation email. The frontend room setup, waiting room, invitation dialog, notification panel and invitation landing page are connected to the real API.

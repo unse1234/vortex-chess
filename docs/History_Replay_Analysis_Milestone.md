@@ -1,5 +1,8 @@
 # Game history, original replay and temporary manual analysis
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Updated: 26 October 2026. **Milestone complete for the real API.** Implements the history/replay portion of phase 6 and the explicitly approved temporary manual-analysis scope. Earlier exclusions of all branching are superseded **for finished games only**. Live historical review stays read-only. Engine play, numerical evaluation, best moves, accuracy and automated review remain unavailable.
 
 ## Entry points and behavior

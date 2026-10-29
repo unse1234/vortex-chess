@@ -1,33 +1,54 @@
 # Vortex Chess
 
-One repository for the Vortex Chess frontend, backend, and project documentation.
+Current implementation documentation, audited from source on 29 October 2026:
 
-| Directory | Contents |
+| Audience | Start here |
 | --- | --- |
-| [frontend/](frontend/README.md) | Next.js interface, V1 chess experience, authentication, rooms, invitations, notifications and live games |
-| [backend/](backend/README.md) | NestJS API, PostgreSQL/Prisma persistence, sessions, rooms/invitations, authoritative games and clocks, engine games through the HTTP engine adapter, Socket.IO realtime and invitation email outbox |
-| [docs/](docs/) | Architecture, scope decisions, and milestone handoff |
+| Users | [User guide](docs/user-guide.md), [complete feature catalog](docs/feature-catalog.md) |
+| Developers | [Architecture](docs/architecture.md), [frontend](docs/frontend.md), [backend](docs/backend.md), [HTTP API](docs/api.md), [realtime](docs/realtime.md) |
+| Maintainers | [Database](docs/database.md), [engine integration](docs/engine.md), [security](docs/security.md), [testing and audit evidence](docs/testing.md) |
+| Operators | [Setup, environment and deployment](docs/deployment.md), [operations and troubleshooting](docs/operations.md) |
 
-Start with the [project plan](docs/Vortix_Chess_Project_Plan.md), the [authentication milestone](docs/Backend_Authentication_Milestone.md), the [rooms, invitations and notifications milestone](docs/Rooms_Invitations_Notifications_Milestone.md), the [gameplay milestone](docs/Gameplay_Milestone.md), the [history/replay milestone](docs/History_Replay_Analysis_Milestone.md) and the [engine gameplay milestone](docs/Engine_Gameplay_Milestone.md). Each app's README documents its environment variables, installation, database setup, and development commands.
+Vortex Chess supports private timed human games, external-engine games, casual/rated random matchmaking, friends/blocks, durable notifications, password recovery, separate Bullet/Blitz/Rapid Elo, leaderboards, replay/PGN, temporary manual variations and browser audio preferences. Some screens use the spelling Vortix; product metadata still uses Vortex Chess.
 
-Rated random matchmaking, independent Bullet/Blitz/Rapid Elo and paginated leaderboards are implemented. See the [ratings milestone](docs/Rated_Matchmaking_Elo_Leaderboards.md) for policy, migrations, configuration and verification. Password recovery and [game audio](docs/Game_Audio.md) are also implemented; Google authentication remains disabled.
+Prerequisites: Node.js **24.15.0+**, npm, Git and PostgreSQL with a dedicated application database/user. SMTP is required for actual email delivery; a compatible external HTTP engine is optional. See [deployment](docs/deployment.md) for all environment variables, database provisioning, production builds, HTTPS/cookies, proxies and migration ordering.
 
-Friends/social management is implemented: username discovery, requests, paginated friendships, private presence, casual challenges through existing invitations, and blocking across direct interactions and matchmaking. See the [social milestone](docs/Friends_Social_Management.md) for policy, API/events, migration, rollout and the single-instance presence requirement.
+Chat, live voice, public rooms, spectating, tournaments, team play, variants, profile customization, advanced statistics, seasons, XP and Google sign-in remain disabled. Manual variations are unsaved; engine evaluation/hints/accuracy are unavailable. The terms route is placeholder content. The full runtime requires one backend owner for clocks, presence and engine scheduling.
 
-Install dependencies separately from this directory:
+API mode is the default. `NEXT_PUBLIC_API_MOCKING=enabled` explicitly enables a limited frontend demo; API errors never enable it. The [catalog](docs/feature-catalog.md) separates implemented, partial, demo and disabled functionality, with verification recorded independently.
 
-```sh
+Older [plans and milestone reports](docs/) are historical background. The current guides above supersede their scope claims and setup advice.
+
+
+## Quick start
+
+From the repository root:
+
+```powershell
 npm --prefix frontend ci
 npm --prefix backend ci
+Copy-Item backend/.env.example backend/.env
+Copy-Item frontend/.env.example frontend/.env.local
 ```
 
-The apps share one Git history. Run Git commands from this directory; commit hooks run lint and typecheck for both apps. Keep local credentials in ignored `.env` files and use the committed `.env.example` files as templates.
+Edit the ignored local files with your own database connection, generated signing secret and exact frontend CORS origin. The template signing secret is deliberately rejected. Leave ENGINE_BASE_URL unset to disable engine games. Use localhost consistently for frontend/API cookies.
 
-```sh
-npm --prefix frontend run test
-npm --prefix backend run test
-npm --prefix frontend run build
-npm --prefix backend run build
+In one terminal:
+
+```powershell
+Set-Location backend
+npm run db:validate
+npm run db:migrate
+npm run start:dev
 ```
 
-Backend HTTP integration tests additionally require a dedicated PostgreSQL test database; see [backend setup](backend/README.md). They run one file at a time and need the database to themselves.
+In another terminal:
+
+```powershell
+Set-Location frontend
+npm run dev
+```
+
+Open `http://localhost:3000` (API `http://localhost:3001/api`). There is no seed script; create an account through signup.
+
+Run Git from this root. Husky runs both apps’ lint/typecheck before commits. See [testing](docs/testing.md) for checks actually executed and the isolated-database integration procedure. No seed or hosted CI workflow is included.

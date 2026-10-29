@@ -1,5 +1,8 @@
 # Password recovery — 28 October 2026
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Signed-out players can request an emailed link and choose a new password. The feature lives in the authentication domain. It reuses the existing Argon2id hashing, `AuthSession` revocation, the `EmailJob` outbox and worker, the throttler, and the auth UI components. It adds no new provider, infrastructure or dependency.
 
 ## User flow

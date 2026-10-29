@@ -1,5 +1,8 @@
 # Backend foundation and authentication milestone
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Updated: 22 October 2026.
 
 This milestone adds NestJS configuration, PostgreSQL/Prisma persistence, users, email/password authentication, HTTP guards/errors/validation, health checks and frontend authentication integration. Rooms, invitations, games, Socket.IO, UCI and evaluation remain later milestones. Existing frontend design and Coming Soon controls are preserved.

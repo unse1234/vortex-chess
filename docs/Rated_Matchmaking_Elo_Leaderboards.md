@@ -1,5 +1,8 @@
 # Rated matchmaking, Elo and leaderboards — 28 October 2026
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Rated random human games, independent pool ratings and leaderboards are enabled in real API mode. This milestone supersedes earlier scope exclusions for ratings and leaderboards. Casual random games, private invitations, engine games, audio, password recovery, history, replay and temporary manual analysis keep their existing behavior. Google authentication, tournaments, XP, rewards and seasons remain disabled.
 
 ## Policy: elo-v1

@@ -1,5 +1,8 @@
 # Player-versus-engine gameplay milestone
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Updated: 26 October 2026. Follows the [gameplay](Gameplay_Milestone.md) and [history/replay](History_Replay_Analysis_Milestone.md) milestones. This is phase 5 ("Engine play") of the [project plan](Vortix_Chess_Project_Plan.md#19-implementation-sequence-and-completion-gates).
 
 A signed-in player can start a timed game against the teammate's engine from the launcher. The server owns the engine's turns: it asks the engine service for a move, validates the reply with chess.js and applies it through the same atomic move, clock and result pipeline as a player's move. Authentication, rooms, PvP gameplay, clocks, history/replay and temporary manual analysis are unchanged.

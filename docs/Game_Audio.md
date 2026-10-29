@@ -1,5 +1,8 @@
 # Game audio
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Implemented 28 October 2026. Browser-local audio is optional and never changes game rules, clock arithmetic, official move ordering, persistence, results or the independent live-review cursor. No audio package, backend endpoint, microphone permission or voice-chat UI was introduced.
 
 ## Assets

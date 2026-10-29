@@ -1,5 +1,8 @@
 # Friends and social management
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Implemented 29 October 2026. This milestone enables Friends and friend management in real API mode. It supersedes earlier Coming Soon references to Friends only. Google login, public rooms, text/voice chat, feeds, tournaments, engine evaluation and other deferred features remain disabled.
 
 ## Ownership and state

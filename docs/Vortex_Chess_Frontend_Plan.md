@@ -1,5 +1,8 @@
 # Vortex Chess — Frontend Architecture and Delivery Plan
 
+> **Historical planning document.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 > **Friends/social milestone (29 October 2026):** Username discovery, durable friend requests, paginated friendships, friends-only presence, casual challenges through existing invitations, and directional blocks across social interactions and random matchmaking are implemented. API mode enables /friends and private block settings. This supersedes earlier Friends exclusions only; Google login, public rooms, chat and other deferred features remain disabled. See [policy, module ownership, migration, deployment support and verification](Friends_Social_Management.md).
 
 > **Rated matchmaking milestone (28 October 2026):** API mode enables Rated/Casual selection, independent pool rating summaries, immutable game-start ratings, committed result/history deltas and `/leaderboard` with server pagination, global competition rank and provisional states. This supersedes earlier ratings/leaderboard exclusions. Password recovery is implemented; Google authentication and other deferred capabilities remain disabled. See [contracts, reconciliation and verification](Rated_Matchmaking_Elo_Leaderboards.md).

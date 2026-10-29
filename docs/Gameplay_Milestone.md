@@ -1,5 +1,8 @@
 # Authoritative player-vs-player gameplay milestone
 
+> **Historical milestone / handoff.** Preserved for dated decisions and original verification reports. Current scope, setup and contracts are superseded by the [feature catalog](feature-catalog.md), [current documentation index](../README.md), [deployment guide](deployment.md), [API notes](api.md) and [current testing evidence](testing.md). Old future-work statements, UCI-process proposals and test/performance counts are not proof of current functionality.
+
+
 Updated: 26 October 2026. Follows the [rooms, invitations and notifications milestone](Rooms_Invitations_Notifications_Milestone.md). This is phase 4 ("PvP core") of the [project plan](Vortix_Chess_Project_Plan.md#19-implementation-sequence-and-completion-gates).
 
 A ready room now starts exactly one game. The server owns the game: legal moves, turn, clocks, draw offers, results and the durable move record. Moves travel over the existing authenticated Socket.IO connection, are validated with chess.js, are committed to PostgreSQL in one statement and are only then broadcast. The existing game screen is connected to it: board, promotion dialog, players, clocks, move list, draw and resign controls, connection state and the result dialog.
